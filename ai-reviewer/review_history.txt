@@ -1,0 +1,142 @@
+
+
+====================
+
+### Code Review: `MainActivity.kt`
+
+**Reviewer:** Senior Android Kotlin Code Reviewer
+
+**Overall Impression:**
+The current diff introduces two new comment lines at the top of the `MainActivity.kt` file (`// ai review test` and `// gemini review test`). These changes are trivial and have no functional impact on the application.
+
+**Detailed Review by Focus Area:**
+
+1.  **Architecture Issues:**
+    *   **Finding:** N/A. The changes are comments and do not affect the architectural structure or patterns within `MainActivity` or the application as a whole.
+    *   **Recommendation:** No action needed.
+
+2.  **OCR/Parser Regressions:**
+    *   **Finding:** N/A. There are no changes related to parsing logic, string manipulation, or OCR integration.
+    *   **Recommendation:** No action needed.
+
+3.  **Android Lifecycle Risks:**
+    *   **Finding:** N/A. Adding comments does not introduce or mitigate any Android lifecycle-related risks (e.g., incorrect `onCreate`, `onResume`, `onDestroy` handling).
+    *   **Recommendation:** No action needed.
+
+4.  **Memory Leaks:**
+    *   **Finding:** N/A. The changes do not involve object creation, context references, or long-lived resources that could lead to memory leaks.
+    *   **Recommendation:** No action needed.
+
+5.  **Bad Abstractions:**
+    *   **Finding:** N/A. No new classes, functions, or interfaces are introduced or modified in a way that would suggest bad abstractions.
+    *   **Recommendation:** No action needed.
+
+6.  **Threading Issues:**
+    *   **Finding:** N/A. The changes are purely declarative (comments) and do not involve any concurrency, background tasks, coroutines, or threading logic.
+    *   **Recommendation:** No action needed.
+
+7.  **Performance Risks:**
+    *   **Finding:** N/A. Adding two lines of comments to a source file has no runtime performance impact.
+    *   **Recommendation:** No action needed.
+
+8.  **Retry Queue Risks:**
+    *   **Finding:** N/A. There are no changes related to network operations, error handling, or retry mechanisms.
+    *   **Recommendation:** No action needed.
+
+---
+
+**Conclusion:**
+The submitted diff consists of adding two comment lines and introduces no functional changes or risks in any of the specified focus areas. The change is safe to merge from a code quality perspective.
+
+====================
+
+```
+Code Review: MainActivity.kt
+
+**Review Summary:**
+
+The provided diff introduces a single-line comment `// gemini review test` at the top of `MainActivity.kt`. This change is purely cosmetic and has no functional impact on the application.
+
+---
+
+**Detailed Review against Criteria:**
+
+*   **Architecture Issues:**
+    *   **Finding:** None. The change is a comment and does not affect the architectural design or patterns.
+    *   **Recommendation:** N/A.
+
+*   **OCR/Parser Regressions:**
+    *   **Finding:** None. The change is a comment and introduces no code that could cause OCR or parser regressions.
+    *   **Recommendation:** N/A.
+
+*   **Android Lifecycle Risks:**
+    *   **Finding:** None. No lifecycle methods are added, modified, or affected by this comment.
+    *   **Recommendation:** N/A.
+
+*   **Memory Leaks:**
+    *   **Finding:** None. A comment does not allocate memory or hold references that could lead to leaks.
+    *   **Recommendation:** N/A.
+
+*   **Bad Abstractions:**
+    *   **Finding:** None. No new abstractions are introduced, and existing ones are untouched.
+    *   **Recommendation:** N/A.
+
+*   **Threading Issues:**
+    *   **Finding:** None. A comment has no impact on threading or concurrency.
+    *   **Recommendation:** N/A.
+
+*   **Performance Risks:**
+    *   **Finding:** None. A comment has zero runtime performance impact.
+    *   **Recommendation:** N/A.
+
+*   **Retry Queue Risks:**
+    *   **Finding:** None. No retry queue logic is present or modified.
+    *   **Recommendation:** N/A.
+
+---
+
+**Overall Feedback & Recommendations:**
+
+This change is a non-functional comment. While it passes all technical checks against the specified criteria, it's generally good practice to remove such temporary comments before merging to `main`/`production` branches unless they serve a very specific, long-term documentation purpose (which this comment does not appear to).
+
+**Action Item:**
+*   Confirm the purpose of the `// gemini review test` comment. If it was for a temporary test or marker, it should be removed before merging to a release branch to maintain code cleanliness.
+```
+
+====================
+
+Alright, let's review this change.
+
+```diff
+diff --git a/app/src/main/java/vn/phapsumeo/onetap/MainActivity.kt b/app/src/main/java/vn/phapsumeo/onetap/MainActivity.kt
+index a2c4140..1bdaacc 100644
+--- a/app/src/main/java/vn/phapsumeo/onetap/MainActivity.kt
++++ b/app/src/main/java/vn/phapsumeo/onetap/MainActivity.kt
+@@ -1,5 +1,5 @@
+ package vn.phapsumeo.onetap
+-
++// gemini review test
+ import android.Manifest
+ import android.app.Activity
+ import android.content.Intent
+```
+
+This diff introduces a single-line comment: `// gemini review test`.
+
+Let's go through the focus areas:
+
+*   **architecture issues**: Adding a comment has no impact on the application's architecture.
+*   **OCR/parser regressions**: This change does not involve any OCR or parsing logic, so no regressions are expected.
+*   **Android lifecycle risks**: A comment line does not introduce or mitigate any Android lifecycle-related risks.
+*   **memory leaks**: This change is purely textual and cannot cause a memory leak.
+*   **bad abstractions**: A comment is not an abstraction, so this is not applicable.
+*   **threading issues**: There are no code changes that could introduce or resolve threading issues.
+*   **performance risks**: A comment line has no measurable impact on performance.
+*   **retry queue risks**: This change is unrelated to any retry queue mechanisms.
+
+**Overall Feedback:**
+
+The change is a cosmetic addition of a comment line. It has no functional impact on the codebase and therefore introduces no risks or issues across any of the specified categories.
+
+**Conclusion:**
+Approved. This change is safe to merge.

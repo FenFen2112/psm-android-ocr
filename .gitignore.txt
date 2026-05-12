@@ -1,0 +1,17 @@
+keystore/
+*.jks
+*.keystore
+.gradle/
+build/
+*/build/
+local.properties
+.idea/
+.vscode/
+.cursor/
+*.log
+captures/
+debug_crops/
+ocr_debug/
+outputs/
+tmp/
+temp/

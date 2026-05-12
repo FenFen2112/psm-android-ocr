@@ -1,0 +1,11 @@
+diff --git a/app/src/main/java/vn/phapsumeo/onetap/MainActivity.kt b/app/src/main/java/vn/phapsumeo/onetap/MainActivity.kt
+index a2c4140..1bdaacc 100644
+--- a/app/src/main/java/vn/phapsumeo/onetap/MainActivity.kt
++++ b/app/src/main/java/vn/phapsumeo/onetap/MainActivity.kt
+@@ -1,5 +1,5 @@
+ package vn.phapsumeo.onetap
+-
++// gemini review test
+ import android.Manifest
+ import android.app.Activity
+ import android.content.Intent
