@@ -1,6 +1,11 @@
 keystore/
 *.jks
 *.keystore
+.env
+*.env
+__pycache__/
+*.pyc
+.tmp.driveupload/
 .gradle/
 build/
 */build/
