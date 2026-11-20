@@ -19,6 +19,8 @@ object XianyuRuleTextExtractor {
     /** Mã Xianyu dài hơn SĐT 11 số. Không nuốt 188… sau nhãn đơn. */
     private val RE_LONG_ORDER_DIGITS = Regex("""\d[\d\s]{15,24}""")
     private val CN_MOBILE = Regex("""1[3-9]\d{9}""")
+    /** Giá dính cuối tên, ví dụ `玩具¥13.1`. */
+    private val RE_TITLE_PRICE = Regex("""[¥￥]\s*(\d{1,6}(?:[.,]\d{1,2})?)""")
     private val TRACK_REGEX =
         Regex("""(?:运单号|物流单号|快递单号|(?<!订)单号|快递|快遞)[^0-9A-Za-z]*([A-Za-z0-9\-\s]{8,32})""")
 
@@ -45,6 +47,15 @@ object XianyuRuleTextExtractor {
         val t = raw.replace(" ", "").trim()
         if (t.length < 8 || CN_MOBILE.matches(t)) return null
         return t
+    }
+
+    /** Tách `¥/￥` + số khỏi tên. Không có giá thì số trả về null, không phải 0. */
+    fun splitTitlePrice(title: String): Pair<String, Double?> {
+        val match = RE_TITLE_PRICE.findAll(title).lastOrNull() ?: return title.trim() to null
+        val amount = parseMoneyToken(match.groupValues[1]) ?: return title.trim() to null
+        if (amount <= 0.0) return title.trim() to null
+        val cleaned = title.removeRange(match.range).replace(Regex("""\s+"""), " ").trim()
+        return cleaned to amount
     }
 
     fun parseMoneyToken(raw: String): Double? {

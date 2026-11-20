@@ -89,9 +89,12 @@ object BubbleMultiRegionOcr {
         val titleText = runRegion(titleOcrBmp, titleOcrRect, "title")
         val priceText = runRegion(preprocess.priceBitmap, preprocess.priceCropRectInCapture, "price")
 
-        val productTitle = pickProductTitleFromTitleRegion(titleText)
+        val pickedTitle = pickProductTitleFromTitleRegion(titleText)
+        val (productTitle, embeddedPrice) = XianyuRuleTextExtractor.splitTitlePrice(pickedTitle)
         var draft = OrderDraft(
             tenSanPham = productTitle.take(120),
+            giaHangCn = embeddedPrice,
+            tongCn = embeddedPrice,
             sharedImageUri = imageUri,
         )
         draft = XianyuRuleTextExtractor.merge(draft, priceText)

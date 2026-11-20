@@ -7,6 +7,7 @@ import vn.phapsumeo.onetap.extraction.core.LayoutHints
 import vn.phapsumeo.onetap.extraction.core.OcrDocument
 import vn.phapsumeo.onetap.extraction.core.OcrLine
 import vn.phapsumeo.onetap.model.OrderDraft
+import vn.phapsumeo.onetap.parser.XianyuRuleTextExtractor
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -104,16 +105,18 @@ class XianyuHeuristicEntityDetector : EntityDetector {
             }
         }
 
-        val finalTenSp = tenSp.replace("原褲", "原神").replace("原裤", "原神").split("￥").first().split("¥").first().trim()
+        val normalized = tenSp.replace("原褲", "原神").replace("原裤", "原神")
+        val (finalTenSp, embeddedPrice) = XianyuRuleTextExtractor.splitTitlePrice(normalized)
+        val price = tong ?: embeddedPrice
 
         return OrderDraft(
             maDonHang = maDonHang,
             maVanChuyen = maVc,
             trangThaiDon = trangThai,
             tenSanPham = finalTenSp.take(100),
-            giaHangCn = null,
+            giaHangCn = embeddedPrice,
             shipNoiDiaCn = null,
-            tongCn = tong,
+            tongCn = price,
             sharedImageUri = document.imageUri,
         )
     }

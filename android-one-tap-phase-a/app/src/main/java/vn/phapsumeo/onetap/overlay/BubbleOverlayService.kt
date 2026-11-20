@@ -332,9 +332,11 @@ class BubbleOverlayService : Service() {
                 }
                 // #endregion
 
+                val sheetBmp = productPhotoForSheet(bitmap, preprocess.thumbnailCropRectInCapture, productBmp)
                 val imageUri = withContext(Dispatchers.IO) {
-                    saveBitmapToCache(productBmp)
+                    saveBitmapToCache(sheetBmp)
                 }
+                if (sheetBmp !== productBmp && sheetBmp !== bitmap && !sheetBmp.isRecycled) sheetBmp.recycle()
                 if (productBmp !== bitmap) productBmp.recycle()
 
                 Log.d("PSM_BUBBLE", "[DEBUG-BUBBLE] image saved: $imageUri")
@@ -1006,6 +1008,21 @@ class BubbleOverlayService : Service() {
             ),
         )
         // #endregion
+    }
+
+    /** Một ảnh sản phẩm cho sheet. Ảnh khung debug chỉ khi bật chế độ nhà phát triển. */
+    private fun productPhotoForSheet(full: Bitmap, thumb: Rect?, card: Bitmap): Bitmap {
+        val r = thumb ?: return card
+        val left = r.left.coerceIn(0, full.width - 1)
+        val top = r.top.coerceIn(0, full.height - 1)
+        val width = r.width().coerceAtMost(full.width - left)
+        val height = r.height().coerceAtMost(full.height - top)
+        if (width < 8 || height < 8) return card
+        return try {
+            Bitmap.createBitmap(full, left, top, width, height)
+        } catch (_: Exception) {
+            card
+        }
     }
 
     private fun saveBitmapToCache(bitmap: Bitmap): String? {
