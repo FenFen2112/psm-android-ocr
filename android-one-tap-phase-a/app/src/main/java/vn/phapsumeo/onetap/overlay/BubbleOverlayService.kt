@@ -1034,7 +1034,11 @@ class BubbleOverlayService : Service() {
             if (uris.isNotEmpty()) break
         }
         if (uris.isEmpty()) {
-            val fallback = ThumbnailCropDetector.fallbackCropRect(card.width, card.height, topFrac = 0.22f)
+            val fallback = ThumbnailCropDetector.fallbackCropRect(
+                card.width,
+                card.height,
+                topFrac = ThumbnailCropDetector.contentTopFraction(card),
+            )
             val photo = cropBitmap(full, Rect(
                 fallback.left + originLeft,
                 fallback.top + originTop,

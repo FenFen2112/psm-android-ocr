@@ -157,7 +157,7 @@ object XianyuRuleTextExtractor {
             paidAt(lines, i).first?.let { return it }
         }
         val flat = lines.joinToString(" ")
-        return Regex("""(?:实付款|實付款|实付|實付|成交价)[^\d]{0,12}(\d{1,6}(?:[.,]\d{1,2})?)""")
+        return Regex("""(?:实付款|實付款|实付|實付|成交价)[^\d]{0,24}(\d{1,4}[.,]\d{1,2})""")
             .find(flat)
             ?.let { parseMoneyToken(it.groupValues[1]) }
             ?.takeIf { it > 0.0 }
@@ -220,8 +220,13 @@ object XianyuRuleTextExtractor {
      */
     private fun paidAt(lines: List<String>, index: Int): Pair<Double?, Int> {
         val beside = amountBesidePaidLabel(lines[index])
-        val belowLine = lines.getOrNull(index + 1)
-        val below = belowLine?.let { loneAmount(it) }
+        var below: Double? = null
+        for (step in 1..3) {
+            val line = lines.getOrNull(index + step) ?: break
+            if (isPaidLine(line.replace(" ", "")) && step > 1) break
+            below = firstDecimal(line)
+            if (below != null) break
+        }
         val chosen = when {
             beside != null && below != null && below > beside -> below
             beside != null -> beside
@@ -236,10 +241,16 @@ object XianyuRuleTextExtractor {
         val compact = line.replace(" ", "")
         val label = Regex("""实付款|實付款|实付|實付|成交价|付款""").find(compact) ?: return null
         val after = compact.substring(label.range.last + 1)
+        firstDecimal(after)?.let { return it }
         yenAmounts(after).lastOrNull()?.let { return it }
-        loneAmount(after)?.let { return it }
         val before = compact.substring(0, label.range.first)
-        return yenAmounts(before).lastOrNull() ?: loneAmount(before)
+        return firstDecimal(before) ?: yenAmounts(before).lastOrNull()
+    }
+
+    /** Số có phần thập phân, ví dụ 26.5, kể cả khi dòng còn chữ thừa. */
+    private fun firstDecimal(text: String): Double? {
+        val match = Regex("""(\d{1,4}[.,]\d{1,2})""").find(text.replace(" ", "")) ?: return null
+        return parseMoneyToken(match.groupValues[1])?.takeIf { it > 0.0 && it < 100_000.0 }
     }
 
     /** Số trên dòng nhãn, có hoặc không có ký hiệu ¥. */

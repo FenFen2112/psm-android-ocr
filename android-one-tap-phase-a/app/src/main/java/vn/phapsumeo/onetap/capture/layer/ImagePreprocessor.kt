@@ -107,12 +107,18 @@ class OrderCardCropPreprocessor : ImagePreprocessor {
                 clamped
             }
 
-            // Đáy thẻ full ngang: 运费 và 实付款 (nhãn thường nằm bên trái).
+            // 实付款 nằm ngay dưới các ảnh món, full ngang để còn nhãn bên trái.
+            val productRects = ThumbnailCropDetector.findStackedProductRects(cardBmp)
+            val feeTop = (productRects.firstOrNull()?.bottom ?: (ch * 0.30f).toInt())
+                .coerceIn((ch * 0.16f).toInt(), (ch * 0.62f).toInt())
+            val feeBottom = (feeTop + (ch * 0.42f).toInt())
+                .coerceAtMost(padded.height() - 2)
+                .coerceAtLeast(feeTop + dpPx(fullBitmap, 72f))
             val priceRect = Rect(
-                padded.left + dpPx(fullBitmap, 8f),
-                padded.top + (ch * 0.58f).toInt(),
-                padded.right - dpPx(fullBitmap, 8f),
-                padded.top + (ch * PRICE_BAND_MAX_BOTTOM_FRAC).toInt(),
+                padded.left + dpPx(fullBitmap, 6f),
+                padded.top + feeTop,
+                padded.right - dpPx(fullBitmap, 6f),
+                padded.top + feeBottom,
             ).let {
                 val clamped = intersectRect(it, fw, fh)
                 Log.d(TAG, "priceRect raw: $it, clamped: $clamped")

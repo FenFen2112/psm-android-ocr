@@ -42,11 +42,65 @@ object ThumbnailCropDetector {
      *   phía trên) dùng ~0.11f để không neo TITLE vào logistics.
      * @param searchBottomFraction cạnh dưới cửa sổ dò (theo chiều cao ảnh phân tích), ví dụ 0.50f.
      */
-    /** Các ảnh sản phẩm xếp dọc trên một đơn, từ trên xuống. */
+    /**
+     * Đỉnh hàng sản phẩm thật. Hàng shop (logo 淘宝 + tên) thấp hơn ảnh món,
+     * nên không được tính là ảnh.
+     */
+    fun contentTopFraction(source: Bitmap): Float {
+        val w = source.width
+        val h = source.height
+        if (w < 8 || h < 8) return 0.14f
+        val minRun = (w * 0.16f).toInt().coerceAtLeast(24)
+        val stepY = max(3, h / 180)
+        val stepX = max(3, w / 40)
+        val xEnd = (w * 0.34f).toInt().coerceAtLeast(stepX * 2)
+        var runStart = -1
+        var y = (h * 0.01f).toInt()
+        val limit = (h * 0.62f).toInt()
+        while (y < limit) {
+            if (leftRowIsPhoto(source, y, xEnd, stepX)) {
+                if (runStart < 0) runStart = y
+                if (y + stepY - runStart >= minRun) {
+                    return (runStart.toFloat() / h).coerceIn(0f, 0.50f)
+                }
+            } else {
+                runStart = -1
+            }
+            y += stepY
+        }
+        return 0.14f
+    }
+
+    private fun leftRowIsPhoto(b: Bitmap, y: Int, xEnd: Int, stepX: Int): Boolean {
+        var n = 0
+        var sum = 0.0
+        var sumSq = 0.0
+        var chroma = 0.0
+        var x = 0
+        while (x < xEnd) {
+            val p = pixel(b, x, y)
+            val lum = luma(p)
+            sum += lum
+            sumSq += lum * lum
+            val rr = (p shr 16) and 0xFF
+            val gg = (p shr 8) and 0xFF
+            val bb = p and 0xFF
+            chroma += abs(rr - gg) + abs(gg - bb)
+            n++
+            x += stepX
+        }
+        if (n == 0) return false
+        val mean = sum / n
+        val variance = sumSq / n - mean * mean
+        return chroma / n > 16.0 || variance > 280.0 && mean < 210.0
+    }
+
+    /** Các ảnh sản phẩm xếp dọc trên một đơn, từ trên xuống. Bỏ dải shop. */
     fun findStackedProductRects(source: Bitmap): List<Rect> {
         if (source.width < MIN_SIDE_FULL_PX || source.height < MIN_SIDE_FULL_PX) return emptyList()
+        val minPhoto = (source.width * 0.17f).toInt()
         val found = mutableListOf<Rect>()
-        var skip = 0.04f
+        var skip = contentTopFraction(source)
         var guard = 0
         while (skip < 0.88f && found.size < 4 && guard < 6) {
             guard += 1
@@ -58,6 +112,10 @@ object ThumbnailCropDetector {
                 continue
             }
             val rect = hit.rect
+            if (rect.height() < minPhoto || rect.width() < minPhoto) {
+                skip = (rect.bottom.toFloat() / source.height + 0.01f).coerceAtLeast(bottom)
+                continue
+            }
             if (found.any { overlaps(it, rect) }) {
                 skip = (rect.bottom.toFloat() / source.height + 0.01f).coerceAtLeast(bottom)
                 continue
@@ -134,7 +192,10 @@ object ThumbnailCropDetector {
     ): ScoredRect? {
         val iw = s.width
         val ih = s.height
-        val minSide = max(12, (MIN_SIDE_FULL_PX * iw) / fullW)
+        val minSide = max(
+            max(12, (MIN_SIDE_FULL_PX * iw) / fullW),
+            (iw * 0.17f).toInt(),
+        )
         val maxSideByImage = min((iw * 0.46f).toInt(), (ih * 0.42f).toInt())
         val maxSide = max(minSide + 8, maxSideByImage)
         if (minSide > maxSide) return null
@@ -228,7 +289,7 @@ object ThumbnailCropDetector {
         if (n == 0) return false
         val mean = sum / n
         val chroma = chromaSum / n
-        return mean > 165.0 && chroma < 26.0
+        return mean > 150.0 && chroma < 42.0
     }
 
     /**
