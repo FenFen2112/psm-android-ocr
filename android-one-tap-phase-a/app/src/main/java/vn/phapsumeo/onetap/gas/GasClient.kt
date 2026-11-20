@@ -32,18 +32,19 @@ class GasClient(private val context: Context) {
     ): JSONObject = withContext(Dispatchers.IO) {
         if (gasUrl.isBlank()) error("Thiếu GAS URL")
         if (hmacSecret.isBlank()) error("Thiếu HMAC secret")
-        val imageUrl = ensureImageUrl(gasUrl, hmacSecret, draft.sharedImageUri)
+        val imageUrls = draft.sheetImageUris().map { ensureImageUrl(gasUrl, hmacSecret, it) }
+            .filter { it.isNotBlank() }
 
         val businessPayload = JSONObject()
             .put("linkGoc", "")
             .put("giaGoc", draft.giaGocForGas())
-            .put("linkAnh", imageUrl)
+            .put("linkAnh", imageUrls.joinToString("\n"))
             .put("maDonHang", draft.maDonHang)
             .put("maVanChuyen", draft.maVanChuyen)
             .put("trangThaiDon", draft.trangThaiDon)
             .put("tenTab", draft.tenTab)
             .put("tenSanPham", draft.tenSanPham)
-            .put("tenSanPhamMulti", false)
+            .put("tenSanPhamMulti", draft.nhieuSanPham)
 
         val json = postSigned(gasUrl, hmacSecret, businessPayload)
 

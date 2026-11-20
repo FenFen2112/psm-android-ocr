@@ -8,13 +8,13 @@ object GasPayloadBuilder {
         val obj = JSONObject()
             .put("linkGoc", "")
             .put("giaGoc", draft.giaGocForGas())
-            .put("linkAnh", draft.sharedImageUri)
+            .put("linkAnh", draft.sheetImageUris().joinToString("\n"))
             .put("maDonHang", draft.maDonHang)
             .put("maVanChuyen", draft.maVanChuyen)
             .put("trangThaiDon", draft.trangThaiDon)
             .put("tenTab", draft.tenTab)
             .put("tenSanPham", draft.tenSanPham)
-            .put("tenSanPhamMulti", false)
+            .put("tenSanPhamMulti", draft.nhieuSanPham)
         return obj.toString(2)
     }
 }

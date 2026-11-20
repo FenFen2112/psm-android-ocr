@@ -42,6 +42,32 @@ object ThumbnailCropDetector {
      *   phía trên) dùng ~0.11f để không neo TITLE vào logistics.
      * @param searchBottomFraction cạnh dưới cửa sổ dò (theo chiều cao ảnh phân tích), ví dụ 0.50f.
      */
+    /** Các ảnh sản phẩm xếp dọc trên một đơn, từ trên xuống. */
+    fun findStackedProductRects(source: Bitmap): List<Rect> {
+        if (source.width < MIN_SIDE_FULL_PX || source.height < MIN_SIDE_FULL_PX) return emptyList()
+        val found = mutableListOf<Rect>()
+        var skip = 0.08f
+        repeat(4) {
+            val hit = findBestCropRect(source, skipTopFraction = skip, searchBottomFraction = 0.90f) ?: return found
+            val rect = hit.rect
+            if (found.any { overlaps(it, rect) }) return found
+            found += rect
+            val next = rect.bottom.toFloat() / source.height + 0.02f
+            if (next <= skip || next >= 0.90f) return found
+            skip = next
+        }
+        return found
+    }
+
+    private fun overlaps(a: Rect, b: Rect): Boolean {
+        val dx = minOf(a.right, b.right) - maxOf(a.left, b.left)
+        val dy = minOf(a.bottom, b.bottom) - maxOf(a.top, b.top)
+        if (dx <= 0 || dy <= 0) return false
+        val inter = dx * dy
+        val smaller = minOf(a.width() * a.height(), b.width() * b.height()).coerceAtLeast(1)
+        return inter.toFloat() / smaller > 0.45f
+    }
+
     fun findBestCropRect(
         source: Bitmap,
         skipTopFraction: Float = 0.04f,
@@ -61,8 +87,8 @@ object ThumbnailCropDetector {
                 small,
                 fw,
                 fh,
-                skipTopFraction.coerceIn(0f, 0.34f),
-                searchBottomFraction.coerceIn(0.18f, 0.72f),
+                skipTopFraction.coerceIn(0f, 0.70f),
+                searchBottomFraction.coerceIn(0.18f, 0.90f),
             )
             if (cand == null || cand.score < scoreThreshold(sw, sh)) null
             else {

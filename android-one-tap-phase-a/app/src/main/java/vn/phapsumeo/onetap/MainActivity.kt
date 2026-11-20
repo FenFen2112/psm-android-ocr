@@ -96,6 +96,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var queueStore: RetryQueueStore
     private lateinit var retryHistoryStore: RetryHistoryStore
     private var sharedImageUri: String = ""
+    private var productImageUris: List<String> = emptyList()
     /** Parser snapshot for dataset `user_submit` diff (bubble preview, OCR run, or parse). */
     private var initialDraftForDataset: OrderDraft? = null
     /** Parent `record_id` from bubble capture when preview opened from bubble. */
@@ -372,6 +373,8 @@ class MainActivity : AppCompatActivity() {
             tenTab = binding.edtTab.text?.toString().orEmpty().ifBlank { "Trung Quốc" },
             sheetName = binding.spinnerSheetMonth.text?.toString().orEmpty().trim(),
             sharedImageUri = sharedImageUri,
+            productImageUris = productImageUris,
+            nhieuSanPham = binding.edtProduct.text?.toString().orEmpty().contains('\n'),
             tongTienDaXacMinh = XianyuRuleTextExtractor.sumMatchesTotal(h, s, t),
         )
     }
@@ -447,12 +450,18 @@ class MainActivity : AppCompatActivity() {
         }
 
         val imageUri = intent.getStringExtra("bubble_image_uri")
-        if (!imageUri.isNullOrBlank()) {
-            sharedImageUri = imageUri
+        productImageUris = intent.getStringExtra("bubble_product_images").orEmpty()
+            .lines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+        if (productImageUris.isEmpty() && !imageUri.isNullOrBlank()) {
+            productImageUris = listOf(imageUri)
+        }
+        sharedImageUri = productImageUris.firstOrNull().orEmpty()
+        if (sharedImageUri.isNotBlank()) {
             binding.imgPreview.visibility = View.VISIBLE
-            binding.imgPreview.setImageURI(android.net.Uri.parse(imageUri))
+            binding.imgPreview.setImageURI(android.net.Uri.parse(sharedImageUri))
         } else {
-            sharedImageUri = ""
             binding.imgPreview.visibility = View.GONE
         }
 

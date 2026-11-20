@@ -16,16 +16,27 @@ data class OrderDraft(
     val tenTab: String = "Trung Quốc",
     val sheetName: String = "Tháng 5",
     val sharedImageUri: String = "",
+    /** Một URI cho mỗi ảnh sản phẩm. Ảnh đầu trùng [sharedImageUri]. */
+    val productImageUris: List<String> = emptyList(),
+    /** Hơn một dòng sản phẩm trên cùng một đơn. */
+    val nhieuSanPham: Boolean = false,
     /** 商品总价 + 运费 khớp 成交价 (regex / kiểm tra UI). */
     val tongTienDaXacMinh: Boolean = false,
 ) {
+    fun sheetImageUris(): List<String> {
+        val all = productImageUris.filter { it.isNotBlank() }
+        if (all.isNotEmpty()) return all
+        return listOf(sharedImageUri).filter { it.isNotBlank() }
+    }
+
     fun giaGocForGas(): String {
-        val v = tongCn ?: if (giaHangCn != null || shipNoiDiaCn != null) {
-            (giaHangCn ?: 0.0) + (shipNoiDiaCn ?: 0.0)
-        } else {
-            return ""
+        val v = when {
+            tongCn != null && tongCn > 0.0 -> tongCn
+            giaHangCn != null && giaHangCn > 0.0 && shipNoiDiaCn != null && shipNoiDiaCn > 0.0 ->
+                giaHangCn + shipNoiDiaCn
+            giaHangCn != null && giaHangCn > 0.0 -> giaHangCn
+            else -> return ""
         }
-        if (v <= 0.0) return ""
         return (kotlin.math.round(v * 100.0) / 100.0).toString()
     }
 }

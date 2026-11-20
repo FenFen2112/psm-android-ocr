@@ -24,7 +24,9 @@ class RetryQueueStore(context: Context) {
                 .put("shipNoiDiaCn", draft.shipNoiDiaCn)
                 .put("tongCn", draft.tongCn)
                 .put("tenTab", draft.tenTab)
-                .put("sharedImageUri", draft.sharedImageUri),
+                .put("sharedImageUri", draft.sharedImageUri)
+                .put("productImageUris", draft.productImageUris.joinToString("\n"))
+                .put("nhieuSanPham", draft.nhieuSanPham),
         )
         saveArray(arr)
     }
@@ -45,6 +47,11 @@ class RetryQueueStore(context: Context) {
                     tongCn = o.optDoubleOrNull("tongCn"),
                     tenTab = o.optString("tenTab", "Trung Quốc"),
                     sharedImageUri = o.optString("sharedImageUri", ""),
+                    productImageUris = o.optString("productImageUris", "")
+                        .lines()
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() },
+                    nhieuSanPham = o.optBoolean("nhieuSanPham", false),
                 ),
                 attempt = o.optInt("attempt", 0),
                 nextRetryAt = o.optLong("nextRetryAt", 0L),
@@ -72,7 +79,9 @@ class RetryQueueStore(context: Context) {
                     .put("shipNoiDiaCn", d.shipNoiDiaCn)
                     .put("tongCn", d.tongCn)
                     .put("tenTab", d.tenTab)
-                    .put("sharedImageUri", d.sharedImageUri),
+                    .put("sharedImageUri", d.sharedImageUri)
+                    .put("productImageUris", d.productImageUris.joinToString("\n"))
+                    .put("nhieuSanPham", d.nhieuSanPham),
             )
         }
         saveArray(arr)

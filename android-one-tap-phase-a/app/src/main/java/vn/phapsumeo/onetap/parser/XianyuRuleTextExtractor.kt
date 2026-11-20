@@ -49,13 +49,123 @@ object XianyuRuleTextExtractor {
         return t
     }
 
-    /** Tách `¥/￥` + số khỏi tên. Không có giá thì số trả về null, không phải 0. */
+    data class ProductRow(val name: String, val price: Double?)
+
+    data class OrderRead(
+        val products: List<ProductRow> = emptyList(),
+        val ship: Double? = null,
+        val paid: Double? = null,
+        val goods: Double? = null,
+    )
+
+    /**
+     * Mỗi dòng sản phẩm: tên + giá đang bán. Hai mức giá trên một dòng thì bỏ giá gạch (số lớn hơn).
+     * 运费 và 实付款 không phải sản phẩm.
+     */
+    fun readOrder(text: String): OrderRead {
+        var ship: Double? = null
+        var paid: Double? = null
+        var goods: Double? = null
+        val products = mutableListOf<ProductRow>()
+        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        var i = 0
+        while (i < lines.size) {
+            val line = lines[i]
+            val compact = line.replace(" ", "")
+            when {
+                isNoiseLine(compact) -> Unit
+                compact.contains("运费") -> ship = yenAmounts(line).firstOrNull() ?: ship
+                compact.contains("实付款") || compact.contains("成交价") || compact.contains("合计") ->
+                    paid = yenAmounts(line).firstOrNull() ?: paid
+                compact.contains("商品总价") -> goods = yenAmounts(line).firstOrNull() ?: goods
+                else -> {
+                    val prices = yenAmounts(line)
+                    val name = stripYen(line)
+                    if (prices.isNotEmpty() && looksLikeProductName(name)) {
+                        products += ProductRow(name, currentPrice(prices))
+                    } else if (prices.isEmpty() && looksLikeProductName(line) && i + 1 < lines.size) {
+                        val next = lines[i + 1]
+                        val nextCompact = next.replace(" ", "")
+                        val nextPrices = yenAmounts(next)
+                        val nextIsFee = nextCompact.contains("运费") || nextCompact.contains("实付款") ||
+                            nextCompact.contains("成交价") || nextCompact.contains("商品总价")
+                        if (!nextIsFee && nextPrices.isNotEmpty() && !looksLikeProductName(stripYen(next))) {
+                            products += ProductRow(line.trim(), currentPrice(nextPrices))
+                            i += 1
+                        }
+                    }
+                }
+            }
+            i += 1
+        }
+        return OrderRead(products, ship, paid, goods)
+    }
+
+    fun applyRead(draft: OrderDraft, read: OrderRead): OrderDraft {
+        if (read.products.isEmpty() && read.ship == null && read.paid == null) return draft
+        val itemPrices = read.products.mapNotNull { it.price }.filter { it > 0.0 }
+        val itemSum = itemPrices.takeIf { it.isNotEmpty() }?.sum()
+        val hang = read.goods ?: itemSum ?: draft.giaHangCn
+        val ship = read.ship ?: draft.shipNoiDiaCn
+        val tong = when {
+            read.paid != null && read.paid > 0.0 -> read.paid
+            itemSum != null && ship != null && ship > 0.0 -> itemSum + ship
+            read.products.size <= 1 -> itemSum ?: draft.tongCn
+            else -> draft.tongCn
+        }
+        val title = if (read.products.isEmpty()) {
+            draft.tenSanPham
+        } else {
+            read.products.joinToString("\n") { row ->
+                val price = row.price?.takeIf { it > 0.0 }
+                if (price == null) row.name else "${row.name} ¥${moneyText(price)}"
+            }.take(500)
+        }
+        return draft.copy(
+            tenSanPham = title,
+            giaHangCn = hang?.takeIf { it > 0.0 },
+            shipNoiDiaCn = ship?.takeIf { it > 0.0 },
+            tongCn = tong?.takeIf { it > 0.0 },
+            nhieuSanPham = read.products.size > 1,
+            tongTienDaXacMinh = sumMatchesTotal(hang, ship, tong),
+        )
+    }
+
+    /** Giá đang bán trên tên. Nhiều mức ¥ thì lấy số nhỏ hơn, bỏ giá gạch. */
     fun splitTitlePrice(title: String): Pair<String, Double?> {
-        val match = RE_TITLE_PRICE.findAll(title).lastOrNull() ?: return title.trim() to null
-        val amount = parseMoneyToken(match.groupValues[1]) ?: return title.trim() to null
-        if (amount <= 0.0) return title.trim() to null
-        val cleaned = title.removeRange(match.range).replace(Regex("""\s+"""), " ").trim()
-        return cleaned to amount
+        val amounts = yenAmounts(title)
+        val amount = currentPrice(amounts) ?: return title.trim() to null
+        return stripYen(title) to amount
+    }
+
+    private fun currentPrice(amounts: List<Double>): Double? =
+        amounts.filter { it > 0.0 }.minOrNull()
+
+    private fun yenAmounts(text: String): List<Double> =
+        RE_TITLE_PRICE.findAll(text).mapNotNull { parseMoneyToken(it.groupValues[1]) }.filter { it > 0.0 }.toList()
+
+    private fun stripYen(text: String): String =
+        text.replace(RE_TITLE_PRICE, " ").replace(Regex("""\s+"""), " ").trim()
+
+    private fun moneyText(value: Double): String {
+        val rounded = kotlin.math.round(value * 100.0) / 100.0
+        return if (rounded % 1.0 == 0.0) rounded.toInt().toString() else rounded.toString()
+    }
+
+    private fun looksLikeProductName(name: String): Boolean {
+        val t = name.trim()
+        if (t.length < 2) return false
+        val han = t.count { it in '\u4e00'..'\u9fff' }
+        val latin = t.count { it.isLetter() }
+        return han >= 2 || latin >= 4
+    }
+
+    private fun isNoiseLine(compact: String): Boolean {
+        if (compact.contains("确认收货") || compact.contains("自动确认")) return true
+        if (compact.contains("专人专拍")) return true
+        if (compact.contains("订单编号") || compact.contains("订单号")) return true
+        if (compact.contains("复制") && compact.length < 24) return true
+        return Regex("""1[3-9]\d{9}""").containsMatchIn(compact)
     }
 
     fun parseMoneyToken(raw: String): Double? {

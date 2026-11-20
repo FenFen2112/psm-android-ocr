@@ -49,6 +49,7 @@ import vn.phapsumeo.onetap.capture.ScreenCaptureHelper
 import vn.phapsumeo.onetap.capture.layer.CaptureActivityLauncher
 import vn.phapsumeo.onetap.capture.layer.ImagePreprocessor
 import vn.phapsumeo.onetap.capture.layer.OrderCardCropPreprocessor
+import vn.phapsumeo.onetap.capture.layer.ThumbnailCropDetector
 import vn.phapsumeo.onetap.capture.layer.MediaProjectionCaptureLayer
 import vn.phapsumeo.onetap.gas.GasClient
 import vn.phapsumeo.onetap.model.OrderDraft
@@ -332,14 +333,12 @@ class BubbleOverlayService : Service() {
                 }
                 // #endregion
 
-                val sheetBmp = productPhotoForSheet(bitmap, preprocess.thumbnailCropRectInCapture, productBmp)
-                val imageUri = withContext(Dispatchers.IO) {
-                    saveBitmapToCache(sheetBmp)
+                val imageUris = withContext(Dispatchers.IO) {
+                    saveProductPhotos(bitmap, productBmp, preprocess.cropRectInCapture)
                 }
-                if (sheetBmp !== productBmp && sheetBmp !== bitmap && !sheetBmp.isRecycled) sheetBmp.recycle()
-                if (productBmp !== bitmap) productBmp.recycle()
+                val imageUri = imageUris.firstOrNull()
 
-                Log.d("PSM_BUBBLE", "[DEBUG-BUBBLE] image saved: $imageUri")
+                Log.d("PSM_BUBBLE", "[DEBUG-BUBBLE] image saved: ${imageUris.size}")
 
                 // #region agent log
                 agentDebugLog(
@@ -366,6 +365,7 @@ class BubbleOverlayService : Service() {
                             fullW = bitmap.width,
                             fullH = bitmap.height,
                             imageUri = imageUri.orEmpty(),
+                            imageUris = imageUris,
                             preprocess = preprocess,
                         )
                     } ?: BubbleMultiRegionOcr.Result(
@@ -451,6 +451,7 @@ class BubbleOverlayService : Service() {
                 )
                 // #endregion
 
+                preprocess.productBitmap.takeIf { it !== bitmap && !it.isRecycled }?.recycle()
                 preprocess.titleBitmap?.takeIf { !it.isRecycled }?.recycle()
                 preprocess.titleTextOcrBitmap?.takeIf { !it.isRecycled }?.recycle()
                 preprocess.priceBitmap?.takeIf { !it.isRecycled }?.recycle()
@@ -702,7 +703,8 @@ class BubbleOverlayService : Service() {
             if (!ocrDatasetRecordId.isNullOrBlank()) {
                 putExtra(MainActivity.EXTRA_OCR_DATASET_RECORD_ID, ocrDatasetRecordId)
             }
-            putExtra("bubble_image_uri", imageUri)
+            putExtra("bubble_image_uri", draft.sheetImageUris().firstOrNull() ?: imageUri)
+            putExtra("bubble_product_images", draft.productImageUris.joinToString("\n"))
             putExtra(MainActivity.EXTRA_CROP_DEBUG_IMAGE_URI, cropDebugAnnotatedUri)
             putExtra(MainActivity.EXTRA_TITLE_REGION_OCR, titleRegionOcr)
             putExtra(MainActivity.EXTRA_PRICE_REGION_OCR, priceRegionOcr)
@@ -1010,18 +1012,42 @@ class BubbleOverlayService : Service() {
         // #endregion
     }
 
-    /** Một ảnh sản phẩm cho sheet. Ảnh khung debug chỉ khi bật chế độ nhà phát triển. */
-    private fun productPhotoForSheet(full: Bitmap, thumb: Rect?, card: Bitmap): Bitmap {
-        val r = thumb ?: return card
-        val left = r.left.coerceIn(0, full.width - 1)
-        val top = r.top.coerceIn(0, full.height - 1)
-        val width = r.width().coerceAtMost(full.width - left)
-        val height = r.height().coerceAtMost(full.height - top)
-        if (width < 8 || height < 8) return card
+    /** Một ảnh cho mỗi hàng sản phẩm. Không có ảnh thì dùng cả thẻ. */
+    private fun saveProductPhotos(full: Bitmap, card: Bitmap, cardRect: Rect?): List<String> {
+        val local = ThumbnailCropDetector.findStackedProductRects(card)
+        val originLeft = cardRect?.left ?: 0
+        val originTop = cardRect?.top ?: 0
+        val uris = mutableListOf<String>()
+        for (localRect in local) {
+            val rect = Rect(
+                localRect.left + originLeft,
+                localRect.top + originTop,
+                localRect.right + originLeft,
+                localRect.bottom + originTop,
+            )
+            val photo = cropBitmap(full, rect) ?: continue
+            try {
+                saveBitmapToCache(photo)?.let { uris += it }
+            } finally {
+                if (photo !== full && !photo.isRecycled) photo.recycle()
+            }
+        }
+        if (uris.isEmpty()) {
+            saveBitmapToCache(card)?.let { uris += it }
+        }
+        return uris
+    }
+
+    private fun cropBitmap(full: Bitmap, rect: Rect): Bitmap? {
+        val left = rect.left.coerceIn(0, full.width - 1)
+        val top = rect.top.coerceIn(0, full.height - 1)
+        val width = rect.width().coerceAtMost(full.width - left)
+        val height = rect.height().coerceAtMost(full.height - top)
+        if (width < 8 || height < 8) return null
         return try {
             Bitmap.createBitmap(full, left, top, width, height)
         } catch (_: Exception) {
-            card
+            null
         }
     }
 

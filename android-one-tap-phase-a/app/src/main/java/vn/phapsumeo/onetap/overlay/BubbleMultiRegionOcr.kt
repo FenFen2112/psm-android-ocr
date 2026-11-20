@@ -32,6 +32,7 @@ object BubbleMultiRegionOcr {
         fullW: Int,
         fullH: Int,
         imageUri: String,
+        imageUris: List<String> = emptyList(),
         preprocess: PreprocessResult,
     ): Result {
         val ocr = OcrFacade()
@@ -88,18 +89,24 @@ object BubbleMultiRegionOcr {
         }
         val titleText = runRegion(titleOcrBmp, titleOcrRect, "title")
         val priceText = runRegion(preprocess.priceBitmap, preprocess.priceCropRectInCapture, "price")
+        val cardText = runRegion(preprocess.productBitmap, preprocess.cropRectInCapture, "card")
+        val read = XianyuRuleTextExtractor.readOrder(cardText.ifBlank { "$titleText\n$priceText" })
 
         val pickedTitle = pickProductTitleFromTitleRegion(titleText)
         val (productTitle, embeddedPrice) = XianyuRuleTextExtractor.splitTitlePrice(pickedTitle)
+        val photos = imageUris.filter { it.isNotBlank() }.ifEmpty {
+            listOf(imageUri).filter { it.isNotBlank() }
+        }
         var draft = OrderDraft(
             tenSanPham = productTitle.take(120),
             giaHangCn = embeddedPrice,
-            tongCn = embeddedPrice,
-            sharedImageUri = imageUri,
+            tongCn = if (read.products.size > 1) null else embeddedPrice,
+            sharedImageUri = photos.firstOrNull().orEmpty(),
+            productImageUris = photos,
         )
-        draft = XianyuRuleTextExtractor.merge(draft, priceText)
-        // Mã đơn / MVĐ / trạng thái: lấy từ title/price text
-        draft = XianyuRuleTextExtractor.mergeMetadata(draft, "", titleText + "\n" + priceText)
+        draft = XianyuRuleTextExtractor.merge(draft, priceText.ifBlank { cardText })
+        draft = XianyuRuleTextExtractor.mergeMetadata(draft, "", cardText + "\n" + titleText + "\n" + priceText)
+        draft = XianyuRuleTextExtractor.applyRead(draft, read)
 
         val combinedRaw = buildString {
             appendLine("=== TITLE ===")
