@@ -74,6 +74,7 @@ object XianyuRuleTextExtractor {
             val compact = line.replace(" ", "")
             when {
                 isNoiseLine(compact) -> Unit
+                compact.contains("价格明细") || compact.contains("價格明細") -> Unit
                 compact.contains("运费") || compact.contains("运費") -> {
                     val (amount, consumed) = feeAmount(lines, i)
                     if (amount != null) ship = amount
@@ -99,7 +100,8 @@ object XianyuRuleTextExtractor {
                         val nextCompact = next.replace(" ", "")
                         val nextPrices = yenAmounts(next)
                         val nextIsFee = nextCompact.contains("运费") || nextCompact.contains("实付款") ||
-                            nextCompact.contains("成交价") || nextCompact.contains("商品总价")
+                            nextCompact.contains("成交价") || nextCompact.contains("商品总价") ||
+                            nextCompact.contains("价格明细")
                         val promiseName = stripDeliveryPromise(line)
                         if (!nextIsFee && nextPrices.isNotEmpty() &&
                             !looksLikeProductName(stripYen(next)) &&
@@ -119,7 +121,8 @@ object XianyuRuleTextExtractor {
                 .find(flat)
                 ?.let { parseMoneyToken(it.groupValues[1]) }
         }
-        return OrderRead(products, ship, paid ?: paidFromText(lines.joinToString("\n")), goods)
+        val detail = priceDetailAmount(lines, ship)
+        return OrderRead(products, ship, detail ?: paid ?: paidFromText(lines.joinToString("\n")), goods)
     }
 
     /** Gộp vài vùng OCR. 实付款 của vùng nào cũng thắng giá món. */
@@ -144,13 +147,14 @@ object XianyuRuleTextExtractor {
     }
 
     /**
-     * Khoản thanh toán cuối. Nhãn `实付款` hoặc `商品总价` là cùng một ý.
-     * Số có thể khác dòng. Cụm `¥2.9 ¥26.5` lấy 26.5, không cộng giá món hay phí.
-     * Có cả hai nhãn thì lấy 实付款.
+     * Khoản thanh toán cuối. Ưu tiên số cuối trong khối `价格明细`.
+     * Không có khối đó thì lấy số cuối sau `实付款`, rồi mới tới `商品总价`.
+     * Không cộng giá bán, giá gạch hay phí. Thiếu cả ba thì để trống.
      */
     fun paidFromText(text: String): Double? {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
         val ship = shipOnLines(lines)
+        priceDetailAmount(lines, ship)?.let { return it }
         val paidIndexes = lines.indices.filter { isActualPaidLine(lines[it].replace(" ", "")) }
         val indexes = paidIndexes.ifEmpty {
             lines.indices.filter { isGoodsTotalLine(lines[it].replace(" ", "")) }
@@ -161,17 +165,38 @@ object XianyuRuleTextExtractor {
         return null
     }
 
+    /** Số cuối trong mục 价格明细. Bỏ phí ship (2.9), không lấy giá món đứng trước mục. */
+    private fun priceDetailAmount(lines: List<String>, ship: Double?): Double? {
+        val start = lines.indexOfFirst {
+            val compact = it.replace(" ", "")
+            compact.contains("价格明细") || compact.contains("價格明細")
+        }
+        if (start < 0) return null
+        val amounts = mutableListOf<Double>()
+        val header = lines[start]
+        val afterHeader = when {
+            header.contains("价格明细") -> header.substringAfter("价格明细")
+            else -> header.substringAfter("價格明細")
+        }
+        allMoneyOnLine(afterHeader).forEach { amounts += it }
+        val end = minOf(lines.lastIndex, start + 8)
+        for (j in (start + 1)..end) {
+            val compact = lines[j].replace(" ", "")
+            if (compact.contains("订单") || compact.contains("下单") || compact.contains("支付宝")) break
+            if (compact.contains("运费") || compact.contains("运費")) continue
+            allMoneyOnLine(lines[j]).forEach { amounts += it }
+        }
+        val unpaid = amounts.filterNot { sameMoney(it, ship) }
+        return unpaid.lastOrNull()
+    }
+
     fun applyRead(draft: OrderDraft, read: OrderRead): OrderDraft {
         if (read.products.isEmpty() && read.ship == null && read.paid == null) return draft
         val prices = read.products.mapNotNull { it.price?.takeIf { price -> price > 0.0 } }
         val itemSum = prices.takeIf { it.isNotEmpty() }?.sum()
         val ship = read.ship?.takeIf { it > 0.0 } ?: draft.shipNoiDiaCn?.takeIf { it > 0.0 }
         val paid = read.paid?.takeIf { it > 0.0 }
-        val tong = when {
-            paid != null -> paid
-            read.products.size > 1 -> null
-            else -> itemSum ?: draft.tongCn?.takeIf { it > 0.0 }
-        }
+        val tong = paid
         val title = if (read.products.isEmpty()) {
             stripDeliveryPromise(draft.tenSanPham)
         } else {
@@ -260,6 +285,7 @@ object XianyuRuleTextExtractor {
     private fun isProductTitleLine(compact: String): Boolean {
         if (compact.contains("运费") || compact.contains("运費") || compact.contains("实付")) return false
         if (compact.contains("商品总价") || compact.contains("商品總價")) return false
+        if (compact.contains("价格明细") || compact.contains("價格明細")) return false
         val han = compact.count { it in '\u4e00'..'\u9fff' }
         return han >= 4
     }

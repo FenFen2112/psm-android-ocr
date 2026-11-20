@@ -31,8 +31,9 @@ data class OrderDraft(
     }
 
     /**
-     * Ô giá sheet là 实付款. Không lấy giá từng món và không lấy tổng giá hàng (23).
-     * Thiếu thực trả thì để trống, không ghi 0.
+     * Ô giá sheet là khoản thanh toán cuối: số cuối trong 价格明细,
+     * không có thì số cuối sau 实付款 hoặc 商品总价.
+     * Thiếu cả ba thì để trống, không ghi 0.
      */
     fun giaGocForGas(): String = moneyOrBlank(tongCn)
 
