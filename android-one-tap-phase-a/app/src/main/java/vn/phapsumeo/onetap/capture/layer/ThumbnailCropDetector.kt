@@ -95,33 +95,41 @@ object ThumbnailCropDetector {
         return chroma / n > 16.0 || variance > 280.0 && mean < 210.0
     }
 
-    /** Các ảnh sản phẩm xếp dọc trên một đơn, từ trên xuống. Bỏ dải shop. */
+    /**
+     * Mỗi món một ảnh, từ trên xuống. Logo shop thấp hơn ảnh món nên bị loại.
+     * Lấy ô đạt điểm trên cùng của cửa sổ, rồi tìm tiếp bên dưới — không chỉ giữ ảnh điểm cao nhất.
+     */
     fun findStackedProductRects(source: Bitmap): List<Rect> {
         if (source.width < MIN_SIDE_FULL_PX || source.height < MIN_SIDE_FULL_PX) return emptyList()
-        val minPhoto = (source.width * 0.17f).toInt()
+        val minPhoto = (source.width * 0.15f).toInt()
         val found = mutableListOf<Rect>()
-        var skip = contentTopFraction(source)
+        var skip = (contentTopFraction(source) - 0.18f).coerceAtLeast(0.05f)
         var guard = 0
-        while (skip < 0.88f && found.size < 4 && guard < 6) {
+        while (skip < 0.84f && found.size < 4 && guard < 8) {
             guard += 1
-            val bottom = (skip + 0.40f).coerceAtMost(0.94f)
+            val bottom = (skip + 0.36f).coerceAtMost(0.94f)
             if (bottom - skip < 0.12f) break
-            val hit = findBestCropRect(source, skipTopFraction = skip, searchBottomFraction = bottom)
+            val hit = findBestCropRect(
+                source,
+                skipTopFraction = skip,
+                searchBottomFraction = bottom,
+                preferTop = true,
+            )
             if (hit == null) {
-                skip = bottom
+                skip += 0.08f
                 continue
             }
             val rect = hit.rect
             if (rect.height() < minPhoto || rect.width() < minPhoto) {
-                skip = (rect.bottom.toFloat() / source.height + 0.01f).coerceAtLeast(bottom)
+                skip += 0.08f
                 continue
             }
             if (found.any { overlaps(it, rect) }) {
-                skip = (rect.bottom.toFloat() / source.height + 0.01f).coerceAtLeast(bottom)
+                skip = rect.bottom.toFloat() / source.height + 0.02f
                 continue
             }
             found += rect
-            val next = rect.bottom.toFloat() / source.height + 0.01f
+            val next = rect.bottom.toFloat() / source.height + 0.02f
             if (next <= skip) break
             skip = next
         }
@@ -141,6 +149,7 @@ object ThumbnailCropDetector {
         source: Bitmap,
         skipTopFraction: Float = 0.04f,
         searchBottomFraction: Float = 0.56f,
+        preferTop: Boolean = false,
     ): DetectionResult? {
         val fw = source.width
         val fh = source.height
@@ -157,7 +166,8 @@ object ThumbnailCropDetector {
                 fw,
                 fh,
                 skipTopFraction.coerceIn(0f, 0.70f),
-                searchBottomFraction.coerceIn(0.18f, 0.90f),
+                searchBottomFraction.coerceIn(0.18f, 0.94f),
+                preferTop,
             )
             if (cand == null || cand.score < scoreThreshold(sw, sh)) null
             else {
@@ -189,13 +199,15 @@ object ThumbnailCropDetector {
         @Suppress("UNUSED_PARAMETER") fullH: Int,
         skipTopFraction: Float,
         searchBottomFraction: Float,
+        preferTop: Boolean,
     ): ScoredRect? {
         val iw = s.width
         val ih = s.height
         val minSide = max(
             max(12, (MIN_SIDE_FULL_PX * iw) / fullW),
-            (iw * 0.17f).toInt(),
+            (iw * 0.15f).toInt(),
         )
+        val floor = scoreThreshold(iw, ih)
         val maxSideByImage = min((iw * 0.46f).toInt(), (ih * 0.42f).toInt())
         val maxSide = max(minSide + 8, maxSideByImage)
         if (minSide > maxSide) return null
@@ -218,7 +230,7 @@ object ThumbnailCropDetector {
                         continue
                     }
                     val sc = scorePatch(s, r) * verticalThumbLikelihood(r, ih)
-                    if (best == null || sc > best.score) best = ScoredRect(r, sc)
+                    best = keepCandidate(best, r, sc, floor, preferTop)
                     x += stepXY
                 }
                 y += stepXY
@@ -235,7 +247,7 @@ object ThumbnailCropDetector {
                         val ar = r2.width().toFloat() / r2.height()
                         if (ar in ASPECT_MIN..ASPECT_MAX && rightSideIsTextColumn(s, r2)) {
                             val sc2 = scorePatch(s, r2) * verticalThumbLikelihood(r2, ih)
-                            if (best == null || sc2 > best.score) best = ScoredRect(r2, sc2)
+                            best = keepCandidate(best, r2, sc2, floor, preferTop)
                         }
                         x2 += stepXY
                     }
@@ -251,11 +263,23 @@ object ThumbnailCropDetector {
     private fun verticalThumbLikelihood(r: Rect, ih: Int): Float {
         if (ih <= 1) return 1f
         val cy = (r.top + r.bottom) / 2f / ih
-        return when {
-            cy < 0.06f -> 0.25f
-            cy < 0.12f -> 0.55f
-            else -> 1f
-        }
+        return if (cy < 0.035f) 0.45f else 1f
+    }
+
+    /** Ảnh trên thắng ảnh dưới khi cùng đạt ngưỡng, để không nuốt mất món phía trên. */
+    private fun keepCandidate(
+        best: ScoredRect?,
+        rect: Rect,
+        score: Float,
+        floor: Float,
+        preferTop: Boolean,
+    ): ScoredRect? {
+        if (score < floor) return best
+        if (best == null) return ScoredRect(rect, score)
+        if (!preferTop) return if (score > best.score) ScoredRect(rect, score) else best
+        val higher = rect.top + 8 < best.rect.top
+        val sameBand = abs(rect.top - best.rect.top) <= 8
+        return if (higher || (sameBand && score > best.score)) ScoredRect(rect, score) else best
     }
 
     /**
@@ -289,7 +313,7 @@ object ThumbnailCropDetector {
         if (n == 0) return false
         val mean = sum / n
         val chroma = chromaSum / n
-        return mean > 150.0 && chroma < 42.0
+        return mean > 135.0 && chroma < 62.0
     }
 
     /**

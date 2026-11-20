@@ -144,18 +144,15 @@ object XianyuRuleTextExtractor {
     }
 
     /**
-     * Số của 实付款. Nhãn và số có thể không cùng dòng (`实付款、` rồi `¥26.5`).
-     * Không lấy 2.9 của 运费, không cộng giá món.
+     * Số của 实付款. Nhãn và số có thể không cùng dòng.
+     * Dòng sau dạng `¥2.9 ¥26.5` thì lấy 26.5, không lấy 2.9, 13.1 hay 10.5.
      */
     fun paidFromText(text: String): Double? {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
         val ship = shipOnLines(lines)
         for (i in lines.indices) {
             if (!isPaidLine(lines[i].replace(" ", ""))) continue
-            amountAfterPaidLabel(lines[i])?.let { return it }
             amountAfterPaidLine(lines, i, ship)?.let { return it }
-            val above = loneAmount(stripPriceNoise(lines.getOrNull(i - 1).orEmpty()))
-            if (above != null && !sameMoney(above, ship)) return above
         }
         return null
     }
@@ -227,37 +224,49 @@ object XianyuRuleTextExtractor {
     }
 
     /**
-     * Số ở dòng dưới nhãn. Cột trái là chữ, cột phải là số thì 2.9 đứng trước ¥26.5;
-     * lấy số cuối của cụm phí (实付款), không lấy phí ship.
+     * Số cùng dòng sau nhãn, hoặc dòng phí ngay dưới (`2.9` rồi `¥26.5`).
+     * Hai số trên cụm phí thì lấy số cuối. Không lấy giá món đứng trước nhãn.
      */
     private fun amountAfterPaidLine(lines: List<String>, index: Int, ship: Double?): Double? {
-        val end = minOf(lines.lastIndex, index + 4)
         val amounts = mutableListOf<Double>()
+        allMoneyOnLine(lines[index].substringAfterPaidLabel()).forEach { amounts += it }
+        val end = minOf(lines.lastIndex, index + 3)
         for (j in (index + 1)..end) {
             val compact = lines[j].replace(" ", "")
             if (compact.contains("订单") || compact.contains("下单") || compact.contains("支付宝")) break
-            if (compact.contains("运费") || compact.contains("运費")) continue
-            val amount = priceLineAmount(lines[j]) ?: continue
-            if (amounts.any { sameMoney(it, amount) }) continue
-            amounts += amount
+            if (isProductTitleLine(compact)) break
+            allMoneyOnLine(lines[j]).forEach { amounts += it }
         }
         val unpaid = amounts.filterNot { sameMoney(it, ship) }
         if (unpaid.isEmpty()) return null
-        val feeLabel = lines.any {
-            val compact = it.replace(" ", "")
-            compact.contains("运费") || compact.contains("运費")
-        }
-        return if (feeLabel && unpaid.size >= 2) unpaid.last() else unpaid.first()
+        return if (unpaid.size >= 2) unpaid.last() else unpaid.first()
     }
 
-    private fun priceLineAmount(line: String): Double? {
+    private fun String.substringAfterPaidLabel(): String {
+        val labels = listOf("实付款", "實付款", "实付", "實付")
+        val label = labels.mapNotNull { token ->
+            val at = indexOf(token)
+            if (at >= 0) token to at else null
+        }.minByOrNull { it.second } ?: return this
+        return substring(label.second + label.first.length)
+    }
+
+    /** Mọi số tiền trên một dòng, kể cả `¥2.9 ¥26.5`. */
+    private fun allMoneyOnLine(line: String): List<Double> {
         val yen = yenAmounts(line)
-        if (yen.size == 1) return yen.first()
-        return loneAmount(stripPriceNoise(line))
+        if (yen.isNotEmpty()) return yen
+        return Regex("""(?<!\d)(\d{1,4}(?:[.,]\d{1,2})?)(?!\d)""")
+            .findAll(line)
+            .mapNotNull { parseMoneyToken(it.groupValues[1]) }
+            .filter { it > 0.0 && it < 100_000.0 }
+            .toList()
     }
 
-    private fun stripPriceNoise(line: String): String =
-        line.trim().trim('、', '，', '。', '元', '：', ':', '（', '）', '(', ')')
+    private fun isProductTitleLine(compact: String): Boolean {
+        if (compact.contains("运费") || compact.contains("运費") || compact.contains("实付")) return false
+        val han = compact.count { it in '\u4e00'..'\u9fff' }
+        return han >= 4
+    }
 
     private fun shipOnLines(lines: List<String>): Double? {
         for (i in lines.indices) {
