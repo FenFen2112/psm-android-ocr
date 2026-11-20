@@ -90,7 +90,17 @@ object BubbleMultiRegionOcr {
         val titleText = runRegion(titleOcrBmp, titleOcrRect, "title")
         val priceText = runRegion(preprocess.priceBitmap, preprocess.priceCropRectInCapture, "price")
         val cardText = runRegion(preprocess.productBitmap, preprocess.cropRectInCapture, "card")
-        val read = XianyuRuleTextExtractor.readOrder(cardText.ifBlank { "$titleText\n$priceText" })
+        val read = if (cardText.isNotBlank()) {
+            val fromCard = XianyuRuleTextExtractor.readOrder(cardText)
+            val fromPrice = XianyuRuleTextExtractor.readOrder(priceText)
+            fromCard.copy(
+                ship = fromCard.ship ?: fromPrice.ship,
+                paid = fromCard.paid ?: fromPrice.paid,
+                goods = fromCard.goods ?: fromPrice.goods,
+            )
+        } else {
+            XianyuRuleTextExtractor.readOrder("$titleText\n$priceText")
+        }
 
         val pickedTitle = pickProductTitleFromTitleRegion(titleText)
         val (productTitle, embeddedPrice) = XianyuRuleTextExtractor.splitTitlePrice(pickedTitle)

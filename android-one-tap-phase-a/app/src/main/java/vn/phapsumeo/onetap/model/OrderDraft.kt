@@ -16,8 +16,10 @@ data class OrderDraft(
     val tenTab: String = "Trung Quốc",
     val sheetName: String = "Tháng 5",
     val sharedImageUri: String = "",
-    /** Một URI cho mỗi ảnh sản phẩm. Ảnh đầu trùng [sharedImageUri]. */
+    /** Một URI cho mỗi ảnh sản phẩm, cùng thứ tự với [giaTungMon]. */
     val productImageUris: List<String> = emptyList(),
+    /** Giá đang bán từng món. Không cộng phí, không lấy giá gạch. */
+    val giaTungMon: List<Double?> = emptyList(),
     /** Hơn một dòng sản phẩm trên cùng một đơn. */
     val nhieuSanPham: Boolean = false,
     /** 商品总价 + 运费 khớp 成交价 (regex / kiểm tra UI). */
@@ -29,14 +31,48 @@ data class OrderDraft(
         return listOf(sharedImageUri).filter { it.isNotBlank() }
     }
 
-    fun giaGocForGas(): String {
-        val v = when {
-            tongCn != null && tongCn > 0.0 -> tongCn
-            giaHangCn != null && giaHangCn > 0.0 && shipNoiDiaCn != null && shipNoiDiaCn > 0.0 ->
-                giaHangCn + shipNoiDiaCn
-            giaHangCn != null && giaHangCn > 0.0 -> giaHangCn
-            else -> return ""
+    /** Giá sheet của một món. Không dùng tổng đơn và không cộng phí vận chuyển. */
+    fun giaGocForGas(): String = moneyOrBlank(giaHangCn)
+
+    fun shipForGas(): String = moneyOrBlank(shipNoiDiaCn)
+
+    fun tongForGas(): String = moneyOrBlank(tongCn)
+
+    /**
+     * Một dòng sheet cho mỗi sản phẩm. 运费 và 实付款 đi kèm đơn, không cộng vào giá món.
+     */
+    fun sheetRows(): List<OrderDraft> {
+        val names = tenSanPham.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        val prices = giaTungMon
+        val photos = sheetImageUris()
+        if (names.size <= 1 && prices.size <= 1) {
+            val photo = photos.firstOrNull().orEmpty()
+            return listOf(
+                copy(
+                    tenSanPham = names.firstOrNull() ?: tenSanPham.trim(),
+                    giaHangCn = prices.firstOrNull() ?: giaHangCn,
+                    sharedImageUri = photo,
+                    productImageUris = listOf(photo).filter { it.isNotBlank() },
+                    nhieuSanPham = false,
+                ),
+            )
         }
-        return (kotlin.math.round(v * 100.0) / 100.0).toString()
+        return names.mapIndexed { index, name ->
+            val photo = photos.getOrNull(index).orEmpty()
+            copy(
+                tenSanPham = name,
+                giaHangCn = prices.getOrNull(index),
+                giaTungMon = listOf(prices.getOrNull(index)),
+                sharedImageUri = photo,
+                productImageUris = listOf(photo).filter { it.isNotBlank() },
+                nhieuSanPham = false,
+            )
+        }
+    }
+
+    private fun moneyOrBlank(value: Double?): String {
+        if (value == null || value <= 0.0) return ""
+        val rounded = kotlin.math.round(value * 100.0) / 100.0
+        return if (rounded % 1.0 == 0.0) rounded.toInt().toString() else rounded.toString()
     }
 }

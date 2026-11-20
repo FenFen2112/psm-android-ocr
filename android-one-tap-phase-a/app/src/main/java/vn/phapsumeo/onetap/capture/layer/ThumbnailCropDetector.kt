@@ -46,14 +46,25 @@ object ThumbnailCropDetector {
     fun findStackedProductRects(source: Bitmap): List<Rect> {
         if (source.width < MIN_SIDE_FULL_PX || source.height < MIN_SIDE_FULL_PX) return emptyList()
         val found = mutableListOf<Rect>()
-        var skip = 0.08f
-        repeat(4) {
-            val hit = findBestCropRect(source, skipTopFraction = skip, searchBottomFraction = 0.90f) ?: return found
+        var skip = 0.04f
+        var guard = 0
+        while (skip < 0.88f && found.size < 4 && guard < 6) {
+            guard += 1
+            val bottom = (skip + 0.40f).coerceAtMost(0.94f)
+            if (bottom - skip < 0.12f) break
+            val hit = findBestCropRect(source, skipTopFraction = skip, searchBottomFraction = bottom)
+            if (hit == null) {
+                skip = bottom
+                continue
+            }
             val rect = hit.rect
-            if (found.any { overlaps(it, rect) }) return found
+            if (found.any { overlaps(it, rect) }) {
+                skip = (rect.bottom.toFloat() / source.height + 0.01f).coerceAtLeast(bottom)
+                continue
+            }
             found += rect
-            val next = rect.bottom.toFloat() / source.height + 0.02f
-            if (next <= skip || next >= 0.90f) return found
+            val next = rect.bottom.toFloat() / source.height + 0.01f
+            if (next <= skip) break
             skip = next
         }
         return found

@@ -5,16 +5,20 @@ import vn.phapsumeo.onetap.model.OrderDraft
 
 object GasPayloadBuilder {
     fun buildPreviewJson(draft: OrderDraft): String {
-        val obj = JSONObject()
-            .put("linkGoc", "")
-            .put("giaGoc", draft.giaGocForGas())
-            .put("linkAnh", draft.sheetImageUris().joinToString("\n"))
-            .put("maDonHang", draft.maDonHang)
-            .put("maVanChuyen", draft.maVanChuyen)
-            .put("trangThaiDon", draft.trangThaiDon)
-            .put("tenTab", draft.tenTab)
-            .put("tenSanPham", draft.tenSanPham)
-            .put("tenSanPhamMulti", draft.nhieuSanPham)
-        return obj.toString(2)
+        val rows = draft.sheetRows().map { row ->
+            JSONObject()
+                .put("linkGoc", "")
+                .put("giaGoc", row.giaGocForGas())
+                .put("linkAnh", row.sharedImageUri)
+                .put("maDonHang", row.maDonHang)
+                .put("maVanChuyen", row.maVanChuyen)
+                .put("trangThaiDon", row.trangThaiDon)
+                .put("tenTab", row.tenTab)
+                .put("tenSanPham", row.tenSanPham)
+                .put("tenSanPhamMulti", false)
+                .put("shipNoiDiaCn", row.shipForGas())
+                .put("tongCn", row.tongForGas())
+        }
+        return if (rows.size == 1) rows[0].toString(2) else org.json.JSONArray(rows).toString(2)
     }
 }

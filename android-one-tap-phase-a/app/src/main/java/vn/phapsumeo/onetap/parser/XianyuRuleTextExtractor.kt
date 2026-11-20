@@ -74,10 +74,21 @@ object XianyuRuleTextExtractor {
             val compact = line.replace(" ", "")
             when {
                 isNoiseLine(compact) -> Unit
-                compact.contains("运费") -> ship = yenAmounts(line).firstOrNull() ?: ship
-                compact.contains("实付款") || compact.contains("成交价") || compact.contains("合计") ->
-                    paid = yenAmounts(line).firstOrNull() ?: paid
-                compact.contains("商品总价") -> goods = yenAmounts(line).firstOrNull() ?: goods
+                compact.contains("运费") -> {
+                    val (amount, consumed) = feeAmount(lines, i)
+                    if (amount != null) ship = amount
+                    i = consumed
+                }
+                compact.contains("实付款") || compact.contains("成交价") || compact.contains("合计") -> {
+                    val (amount, consumed) = feeAmount(lines, i)
+                    if (amount != null) paid = amount
+                    i = consumed
+                }
+                compact.contains("商品总价") -> {
+                    val (amount, consumed) = feeAmount(lines, i)
+                    if (amount != null) goods = amount
+                    i = consumed
+                }
                 else -> {
                     val prices = yenAmounts(line)
                     val name = stripYen(line)
@@ -103,32 +114,44 @@ object XianyuRuleTextExtractor {
 
     fun applyRead(draft: OrderDraft, read: OrderRead): OrderDraft {
         if (read.products.isEmpty() && read.ship == null && read.paid == null) return draft
-        val itemPrices = read.products.mapNotNull { it.price }.filter { it > 0.0 }
-        val itemSum = itemPrices.takeIf { it.isNotEmpty() }?.sum()
-        val hang = read.goods ?: itemSum ?: draft.giaHangCn
-        val ship = read.ship ?: draft.shipNoiDiaCn
-        val tong = when {
-            read.paid != null && read.paid > 0.0 -> read.paid
-            itemSum != null && ship != null && ship > 0.0 -> itemSum + ship
-            read.products.size <= 1 -> itemSum ?: draft.tongCn
-            else -> draft.tongCn
-        }
+        val prices = read.products.map { it.price?.takeIf { price -> price > 0.0 } }
+        val ship = read.ship?.takeIf { it > 0.0 } ?: draft.shipNoiDiaCn
+        val tong = read.paid?.takeIf { it > 0.0 } ?: draft.tongCn
         val title = if (read.products.isEmpty()) {
             draft.tenSanPham
         } else {
-            read.products.joinToString("\n") { row ->
-                val price = row.price?.takeIf { it > 0.0 }
-                if (price == null) row.name else "${row.name} ¥${moneyText(price)}"
-            }.take(500)
+            read.products.joinToString("\n") { it.name }.take(500)
+        }
+        val hang = when {
+            read.products.size == 1 -> prices.firstOrNull()
+            read.goods != null && read.goods > 0.0 -> read.goods
+            else -> null
         }
         return draft.copy(
             tenSanPham = title,
-            giaHangCn = hang?.takeIf { it > 0.0 },
+            giaHangCn = hang,
+            giaTungMon = if (read.products.isEmpty()) draft.giaTungMon else prices,
             shipNoiDiaCn = ship?.takeIf { it > 0.0 },
             tongCn = tong?.takeIf { it > 0.0 },
             nhieuSanPham = read.products.size > 1,
-            tongTienDaXacMinh = sumMatchesTotal(hang, ship, tong),
+            tongTienDaXacMinh = sumMatchesTotal(
+                prices.mapNotNull { it }.takeIf { it.isNotEmpty() }?.sum(),
+                ship,
+                tong,
+            ),
         )
+    }
+
+    /** Phí / thực trả trên cùng dòng, hoặc ở dòng số ngay bên dưới. */
+    private fun feeAmount(lines: List<String>, index: Int): Pair<Double?, Int> {
+        val onLine = yenAmounts(lines[index]).firstOrNull()
+        if (onLine != null) return onLine to index
+        val next = lines.getOrNull(index + 1) ?: return null to index
+        val nextPrices = yenAmounts(next)
+        if (nextPrices.size == 1 && !looksLikeProductName(stripYen(next))) {
+            return nextPrices[0] to index + 1
+        }
+        return null to index
     }
 
     /** Giá đang bán trên tên. Nhiều mức ¥ thì lấy số nhỏ hơn, bỏ giá gạch. */
@@ -146,11 +169,6 @@ object XianyuRuleTextExtractor {
 
     private fun stripYen(text: String): String =
         text.replace(RE_TITLE_PRICE, " ").replace(Regex("""\s+"""), " ").trim()
-
-    private fun moneyText(value: Double): String {
-        val rounded = kotlin.math.round(value * 100.0) / 100.0
-        return if (rounded % 1.0 == 0.0) rounded.toInt().toString() else rounded.toString()
-    }
 
     private fun looksLikeProductName(name: String): Boolean {
         val t = name.trim()
