@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PSM OneTap</string>
+    <string name="hint_paste_ocr">Dán nội dung nhận diện từ ảnh vào đây</string>
+    <string name="btn_parse">Tách thông tin đơn</string>
+    <string name="btn_mock_submit">Gửi đơn lên bảng</string>
+    <string name="btn_run_ocr">Đọc chữ từ ảnh</string>
+    <string name="btn_save_config">Lưu cấu hình</string>
+    <string name="btn_cancel_countdown">Hủy tự gửi</string>
+    <string name="btn_retry_queue">Gửi lại đơn lỗi</string>
+    <string name="btn_clear_queue">Xóa đơn chờ gửi</string>
+    <string name="chk_ocr_debug_viz">Theo dõi tiến độ cập nhật</string>
+    <string name="btn_export_ocr_debug">Xuất ảnh OCR</string>
+    <string name="desc_export_ocr_debug">Lưu ảnh có khung nhận diện để kiểm tra.</string>
+    <string name="chk_ocr_dataset_logging">Lưu dữ liệu huấn luyện AI</string>
+    <string name="chk_ocr_dataset_redact">Ẩn nội dung chữ khi lưu dữ liệu</string>
+    <string name="btn_export_ocr_dataset">Xuất dữ liệu AI (ZIP)</string>
+    <string name="desc_export_ocr_dataset">Lưu dữ liệu OCR để huấn luyện AI.</string>
+    <string name="btn_clear_ocr_dataset">Xóa dữ liệu đã lưu trên máy</string>
+    <string name="developer_mode">Chế độ nhà phát triển</string>
+    <string name="ocr_debug_toggle_collapsed">Gỡ lỗi OCR ▶</string>
+    <string name="ocr_debug_toggle_expanded">Gỡ lỗi OCR ▲</string>
+    <string name="export_folder_display">Download/PSM_OCR/</string>
+    <string name="ocr_privacy_notice">Dữ liệu OCR chỉ được lưu trên thiết bị của bạn, không tự động gửi lên server.</string>
+    <string name="toast_track_progress_auto_off">Chế độ theo dõi đã tự tắt</string>
+    <string name="advanced_settings_toggle_collapsed">Cài đặt nâng cao ▶</string>
+    <string name="advanced_settings_toggle_expanded">Cài đặt nâng cao ▼</string>
+    <string name="product_ref_label">Dịch tham khảo (tiếng Việt)</string>
+    <string name="product_ref_placeholder">— (thêm Gemini API key trong Cài đặt nâng cao để dịch tự động)</string>
+    <string name="price_sum_verified">Đã xác minh tổng tiền (hàng + ship = tổng)</string>
+</resources>

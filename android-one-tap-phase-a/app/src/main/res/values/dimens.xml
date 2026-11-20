@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Spacing (mapped from PWA px to Android dp) -->
+    <dimen name="page_padding">16dp</dimen>
+    <dimen name="card_padding">14dp</dimen>
+    <dimen name="card_margin_bottom">12dp</dimen>
+    <dimen name="section_gap">12dp</dimen>
+    <dimen name="field_gap">10dp</dimen>
+    <dimen name="field_gap_small">8dp</dimen>
+    <dimen name="settings_card_padding">10dp</dimen>
+    <dimen name="settings_input_gap">6dp</dimen>
+    <dimen name="label_margin_bottom">6dp</dimen>
+
+    <!-- Corner radii -->
+    <dimen name="card_corner_radius">18dp</dimen>
+    <dimen name="input_corner_radius">12dp</dimen>
+    <dimen name="button_corner_radius">14dp</dimen>
+
+    <!-- Button height -->
+    <dimen name="button_min_height">48dp</dimen>
+
+    <!-- Grid gap (row2 in PWA) -->
+    <dimen name="grid_gap">10dp</dimen>
+
+    <!-- Max content width (PWA: 440px) -->
+    <dimen name="max_content_width">440dp</dimen>
+</resources>

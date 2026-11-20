@@ -1,0 +1,967 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/psm_bg"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="@dimen/page_padding"
+        android:gravity="center_horizontal">
+
+        <!-- ════════════════════════════════════════════
+             HEADER — title + subtitle (matches PWA h1 + .sub)
+             ════════════════════════════════════════════ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="PSM OneTap"
+            style="@style/TextAppearance.PsmOneTap.Heading" />
+
+        <TextView
+            android:id="@+id/txtSharedUri"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Ảnh Share: chưa có"
+            style="@style/TextAppearance.PsmOneTap.Subtitle" />
+
+        <!-- ════════════════════════════════════════════
+             CARD 1 — Cài đặt (GAS URL + HMAC)
+             Matches PWA: first .card with <details>
+             ════════════════════════════════════════════ -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.PsmOneTap.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/section_gap">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/settings_card_padding">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="CÀI ĐẶT"
+                    style="@style/TextAppearance.PsmOneTap.Label"
+                    android:layout_marginBottom="@dimen/label_margin_bottom" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.PsmOneTap.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Chọn Sheet tháng">
+
+                    <AutoCompleteTextView
+                        android:id="@+id/spinnerSheetMonth"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="none"
+                        android:minHeight="40dp" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnToggleAdvancedSettings"
+                    style="@style/Widget.PsmOneTap.Button.Outlined"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/settings_input_gap"
+                    android:minHeight="42dp"
+                    android:text="@string/advanced_settings_toggle_collapsed" />
+
+                <LinearLayout
+                    android:id="@+id/panelAdvancedSettings"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.PsmOneTap.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/settings_input_gap"
+                        android:hint="GAS Web App URL (/exec)">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edtGasUrl"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textUri"
+                            android:minHeight="40dp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.PsmOneTap.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/settings_input_gap"
+                        android:hint="HMAC secret"
+                        app:endIconMode="password_toggle">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edtHmacSecret"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textPassword"
+                            android:minHeight="40dp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.PsmOneTap.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/settings_input_gap"
+                        android:hint="Gemini API Key"
+                        app:endIconMode="password_toggle">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edtGeminiKey"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textPassword"
+                            android:minHeight="40dp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.PsmOneTap.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/settings_input_gap"
+                        android:hint="OpenAI API Key"
+                        app:endIconMode="password_toggle">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edtOpenAiKey"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textPassword"
+                            android:minHeight="40dp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.PsmOneTap.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/settings_input_gap"
+                        android:hint="Debug ingest IP/URL">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edtDebugIngestTarget"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textUri"
+                            android:minHeight="40dp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSaveConfig"
+                    style="@style/Widget.PsmOneTap.Button.Secondary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/settings_input_gap"
+                    android:minHeight="44dp"
+                    android:text="@string/btn_save_config" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ════════════════════════════════════════════
+             CARD 2 — Bubble overlay controls
+             ════════════════════════════════════════════ -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.PsmOneTap.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/card_margin_bottom">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="BONG BÓNG ĐỌC ĐƠN"
+                    style="@style/TextAppearance.PsmOneTap.Label"
+                    android:layout_marginBottom="@dimen/label_margin_bottom" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnGrantCapture"
+                        style="@style/Widget.PsmOneTap.Button.Outlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Cấp quyền"
+                        android:textSize="12sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnStartBubble"
+                        style="@style/Widget.PsmOneTap.Button.Primary"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:text="Bật"
+                        android:textSize="12sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnStopBubble"
+                        style="@style/Widget.PsmOneTap.Button.Danger"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:text="Tắt"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <com.google.android.material.checkbox.MaterialCheckBox
+                    android:id="@+id/chkBubbleFastMode"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Chế độ Gửi nhanh (không mở màn hình kiểm tra)"
+                    android:textSize="13sp"
+                    android:textColor="@color/psm_text" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ════════════════════════════════════════════
+             CARD 3 — OCR / Paste text
+             Matches PWA: paste area card
+             ════════════════════════════════════════════ -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.PsmOneTap.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/card_margin_bottom">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="ĐỌC THÔNG TIN TỪ ẢNH"
+                    style="@style/TextAppearance.PsmOneTap.Label"
+                    android:layout_marginBottom="@dimen/label_margin_bottom" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.PsmOneTap.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/hint_paste_ocr">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtRawText"
+                        android:layout_width="match_parent"
+                        android:layout_height="120dp"
+                        android:gravity="top|start"
+                        android:inputType="textMultiLine" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="@dimen/field_gap">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnParse"
+                        style="@style/Widget.PsmOneTap.Button.Secondary"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minHeight="@dimen/button_min_height"
+                        android:text="@string/btn_parse" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnRunOcr"
+                        style="@style/Widget.PsmOneTap.Button.Primary"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/grid_gap"
+                        android:layout_weight="1"
+                        android:minHeight="@dimen/button_min_height"
+                        android:text="@string/btn_run_ocr" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ════════════════════════════════════════════
+             CARD 4 — Đơn hàng (production) + OCR Debug (collapsible)
+             ════════════════════════════════════════════ -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.PsmOneTap.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/card_margin_bottom">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="TRẠNG THÁI ĐƠN"
+                    style="@style/TextAppearance.PsmOneTap.Label"
+                    android:layout_marginBottom="@dimen/label_margin_bottom" />
+
+                <TextView
+                    android:id="@+id/txtOrderStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="@dimen/field_gap"
+                    android:text="—"
+                    android:textSize="15sp"
+                    android:textColor="@color/psm_text" />
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="@dimen/field_gap"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="0dp"
+                    app:cardBackgroundColor="@color/psm_card">
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="160dp">
+
+                        <ImageView
+                            android:id="@+id/imgPreview"
+                            android:layout_width="match_parent"
+                            android:layout_height="280dp"
+                            android:minHeight="160dp"
+                            android:scaleType="fitCenter"
+                            android:visibility="gone"
+                            android:background="#EEEEEE" />
+
+                        <vn.phapsumeo.onetap.debug.ocr.OcrDebugVisualizationView
+                            android:id="@+id/ocrDebugOverlay"
+                            android:layout_width="match_parent"
+                            android:layout_height="280dp"
+                            android:minHeight="160dp"
+                            android:visibility="gone"
+                            android:clickable="false"
+                            android:focusable="false" />
+                    </FrameLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardOcrCropDebug"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/field_gap"
+                    android:visibility="gone"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="@color/psm_muted"
+                    app:cardBackgroundColor="@color/psm_card">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="10dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="DEBUG CẮT VÙNG OCR"
+                            style="@style/TextAppearance.PsmOneTap.Label"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Ảnh dưới: chụp full màn + khung đỏ=TITLE, lục=PRICE, lam=META."
+                            android:textSize="11sp"
+                            android:textColor="@color/psm_muted" />
+
+                        <ImageView
+                            android:id="@+id/imgOcrCropDebug"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:adjustViewBounds="true"
+                            android:minHeight="120dp"
+                            android:maxHeight="420dp"
+                            android:scaleType="fitCenter"
+                            android:background="#EEEEEE"
+                            android:contentDescription="OCR crop regions overlay" />
+
+                        <ScrollView
+                            android:layout_width="match_parent"
+                            android:layout_height="280dp"
+                            android:layout_marginTop="8dp"
+                            android:fillViewport="false">
+
+                            <TextView
+                                android:id="@+id/txtOcrCropRegions"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textIsSelectable="true"
+                                android:textSize="12sp"
+                                android:fontFamily="monospace"
+                                android:textColor="@color/psm_text"
+                                android:lineSpacingExtra="2dp"
+                                tools:text="TITLE OCR:\n…" />
+                        </ScrollView>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="TÊN SẢN PHẨM"
+                    style="@style/TextAppearance.PsmOneTap.Label"
+                    android:layout_marginBottom="@dimen/label_margin_bottom" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.PsmOneTap.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Tên sản phẩm">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtProduct"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <TextView
+                    android:id="@+id/lblProductRefVi"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/product_ref_label"
+                    style="@style/TextAppearance.PsmOneTap.Label"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/txtProductTitleVi"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="—"
+                    android:textColor="@color/psm_muted"
+                    android:textSize="13sp"
+                    android:lineSpacingExtra="2dp" />
+
+                <TextView
+                    android:id="@+id/txtPriceVerified"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="8dp"
+                    android:visibility="gone"
+                    android:background="@color/psm_success_soft"
+                    android:text="@string/price_sum_verified"
+                    android:textColor="@color/psm_success_text"
+                    android:textSize="13sp" />
+
+                <!-- Price row: hang + ship side by side (matches PWA .row2) -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="GIÁ (¥)"
+                    style="@style/TextAppearance.PsmOneTap.Label"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="@dimen/label_margin_bottom" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.PsmOneTap.TextInputLayout"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="Giá hàng">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edtHang"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.PsmOneTap.TextInputLayout"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/grid_gap"
+                        android:layout_weight="1"
+                        android:hint="Phí vận chuyển nội địa">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edtShip"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="numberDecimal" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.PsmOneTap.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/field_gap"
+                    android:hint="Tổng tiền">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtTong"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="numberDecimal" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.PsmOneTap.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/field_gap"
+                    android:hint="Mã đơn hàng">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtOrderId"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.PsmOneTap.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/field_gap"
+                    android:hint="Mã vận đơn">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtTracking"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.PsmOneTap.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/field_gap"
+                    android:hint="Tab đích (vd: Trung Quốc)">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtTab"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Trung Quốc" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnToggleOcrDebug"
+                    style="@style/Widget.PsmOneTap.Button.Outlined"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/field_gap"
+                    android:minHeight="@dimen/button_min_height"
+                    android:text="@string/ocr_debug_toggle_collapsed" />
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardOcrDebugSurface"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:visibility="gone"
+                    app:cardBackgroundColor="?attr/colorSurfaceVariant"
+                    app:cardCornerRadius="@dimen/card_corner_radius"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/card_padding">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:id="@+id/labelDeveloperMode"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/developer_mode"
+                                android:textColor="@color/psm_text"
+                                android:textSize="14sp" />
+
+                            <androidx.appcompat.widget.SwitchCompat
+                                android:id="@+id/switchDeveloperMode"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/panelOcrDebugDevOnly"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:id="@+id/txtConfidence"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Độ tin cậy: --"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/psm_accent" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/chkOcrDebugViz"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:text="@string/chk_ocr_debug_viz"
+                                android:textSize="13sp"
+                                android:textColor="@color/psm_text" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnExportOcrDebug"
+                                style="@style/Widget.PsmOneTap.Button.Outlined"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:enabled="false"
+                                android:minHeight="@dimen/button_min_height"
+                                android:text="@string/btn_export_ocr_debug" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="@string/desc_export_ocr_debug"
+                                android:textColor="@color/psm_muted"
+                                android:textSize="12sp" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/chkOcrDatasetLogging"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:text="@string/chk_ocr_dataset_logging"
+                                android:textSize="13sp"
+                                android:textColor="@color/psm_text" />
+
+                            <com.google.android.material.checkbox.MaterialCheckBox
+                                android:id="@+id/chkOcrDatasetRedact"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/chk_ocr_dataset_redact"
+                                android:textSize="13sp"
+                                android:textColor="@color/psm_text" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:orientation="horizontal">
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnExportOcrDataset"
+                                    style="@style/Widget.PsmOneTap.Button.Outlined"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/button_min_height"
+                                    android:text="@string/btn_export_ocr_dataset" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btnClearOcrDataset"
+                                    style="@style/Widget.PsmOneTap.Button.Secondary"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="6dp"
+                                    android:layout_weight="1"
+                                    android:minHeight="@dimen/button_min_height"
+                                    android:text="@string/btn_clear_ocr_dataset" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="@string/desc_export_ocr_dataset"
+                                android:textColor="@color/psm_muted"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ════════════════════════════════════════════
+             CARD 5 — Submit + Confidence + Auto-submit
+             ════════════════════════════════════════════ -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.PsmOneTap.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/card_margin_bottom">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding">
+
+                <com.google.android.material.checkbox.MaterialCheckBox
+                    android:id="@+id/chkAutoSubmit"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:checked="true"
+                    android:text="Tự gửi sau 3 giây khi thông tin đủ tin cậy"
+                    android:textSize="13sp"
+                    android:textColor="@color/psm_text" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSubmitStub"
+                    style="@style/Widget.PsmOneTap.Button.Primary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/field_gap"
+                    android:minHeight="@dimen/button_min_height"
+                    android:text="@string/btn_mock_submit" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCancelCountdown"
+                    style="@style/Widget.PsmOneTap.Button.Danger"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/field_gap_small"
+                    android:text="@string/btn_cancel_countdown"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ════════════════════════════════════════════
+             CARD 6 — Queue retry
+             ════════════════════════════════════════════ -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.PsmOneTap.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/card_margin_bottom">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="HÀNG ĐỢI GỬI LẠI"
+                    style="@style/TextAppearance.PsmOneTap.Label"
+                    android:layout_marginBottom="@dimen/label_margin_bottom" />
+
+                <TextView
+                    android:id="@+id/txtQueueStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Đơn chờ gửi lại: 0"
+                    android:textSize="14sp"
+                    android:textColor="@color/psm_text" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/field_gap"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnRetryQueue"
+                        style="@style/Widget.PsmOneTap.Button.Primary"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/btn_retry_queue" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnClearQueue"
+                        style="@style/Widget.PsmOneTap.Button.Danger"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/field_gap_small"
+                        android:layout_weight="1"
+                        android:text="@string/btn_clear_queue" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ════════════════════════════════════════════
+             CARD 7 — Retry history + filter
+             ════════════════════════════════════════════ -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.PsmOneTap.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/card_margin_bottom">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding">
+
+                <TextView
+                    android:id="@+id/txtRetryHistoryTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="LỊCH SỬ RETRY"
+                    style="@style/TextAppearance.PsmOneTap.Label"
+                    android:layout_marginBottom="@dimen/label_margin_bottom" />
+
+                <!-- Filter chips row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnFilterAll"
+                        style="@style/Widget.PsmOneTap.Button.Outlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Tất cả"
+                        android:textSize="12sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnFilterForeground"
+                        style="@style/Widget.PsmOneTap.Button.Outlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:text="Trong app"
+                        android:textSize="12sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnFilterWorker"
+                        style="@style/Widget.PsmOneTap.Button.Outlined"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:text="Worker nền"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnClearRetryHistory"
+                    style="@style/Widget.PsmOneTap.Button.Danger"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/field_gap_small"
+                    android:text="Xóa lịch sử retry"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/txtRetryHistory"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/field_gap_small"
+                    android:text="Chưa có lịch sử retry."
+                    android:textIsSelectable="true"
+                    android:textSize="12sp"
+                    android:textColor="@color/psm_muted" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ════════════════════════════════════════════
+             CARD 8 — Payload preview (debug)
+             ════════════════════════════════════════════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardPayloadPreview"
+            style="@style/Widget.PsmOneTap.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/card_margin_bottom"
+            android:layout_marginBottom="24dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/psm_info_bg"
+            app:strokeColor="@color/psm_info_border">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="NỘI DUNG GỬI ĐI"
+                    style="@style/TextAppearance.PsmOneTap.Label"
+                    android:layout_marginBottom="@dimen/label_margin_bottom" />
+
+                <TextView
+                    android:id="@+id/txtPayload"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Nội dung gửi đi..."
+                    android:textIsSelectable="true"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace"
+                    android:textColor="@color/psm_muted" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+</ScrollView>

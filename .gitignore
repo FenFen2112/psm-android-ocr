@@ -13,6 +13,9 @@ local.properties
 .idea/
 .vscode/
 .cursor/
+!android-one-tap-phase-a/.cursor/
+!android-one-tap-phase-a/.cursor/rules/
+!android-one-tap-phase-a/.cursor/rules/**
 *.log
 captures/
 debug_crops/
