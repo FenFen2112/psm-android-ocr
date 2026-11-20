@@ -79,14 +79,14 @@ object XianyuRuleTextExtractor {
                     if (amount != null) ship = amount
                     i = consumed
                 }
-                isPaidLine(compact) -> {
+                isActualPaidLine(compact) -> {
                     val (amount, consumed) = paidAt(lines, i)
                     if (amount != null) paid = amount
                     i = consumed
                 }
-                compact.contains("商品总价") -> {
-                    val (amount, consumed) = feeAmount(lines, i)
-                    if (amount != null) goods = amount
+                isGoodsTotalLine(compact) -> {
+                    val (amount, consumed) = paidAt(lines, i)
+                    if (amount != null && paid == null) paid = amount
                     i = consumed
                 }
                 else -> {
@@ -144,14 +144,18 @@ object XianyuRuleTextExtractor {
     }
 
     /**
-     * Số của 实付款. Nhãn và số có thể không cùng dòng.
-     * Dòng sau dạng `¥2.9 ¥26.5` thì lấy 26.5, không lấy 2.9, 13.1 hay 10.5.
+     * Khoản thanh toán cuối. Nhãn `实付款` hoặc `商品总价` là cùng một ý.
+     * Số có thể khác dòng. Cụm `¥2.9 ¥26.5` lấy 26.5, không cộng giá món hay phí.
+     * Có cả hai nhãn thì lấy 实付款.
      */
     fun paidFromText(text: String): Double? {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
         val ship = shipOnLines(lines)
-        for (i in lines.indices) {
-            if (!isPaidLine(lines[i].replace(" ", ""))) continue
+        val paidIndexes = lines.indices.filter { isActualPaidLine(lines[it].replace(" ", "")) }
+        val indexes = paidIndexes.ifEmpty {
+            lines.indices.filter { isGoodsTotalLine(lines[it].replace(" ", "")) }
+        }
+        for (i in indexes) {
             amountAfterPaidLine(lines, i, ship)?.let { return it }
         }
         return null
@@ -202,22 +206,13 @@ object XianyuRuleTextExtractor {
         return null to index
     }
 
-    private fun isPaidLine(compact: String): Boolean =
+    private fun isActualPaidLine(compact: String): Boolean =
         compact.contains("实付款") || compact.contains("實付款") || compact.contains("实付")
 
-    /** Số ngay sau chữ 实付款 trên cùng dòng. Không lấy số đứng trước nhãn. */
-    private fun amountAfterPaidLabel(line: String): Double? {
-        val labels = listOf("实付款", "實付款", "实付", "實付")
-        val label = labels.mapNotNull { token ->
-            val at = line.indexOf(token)
-            if (at >= 0) token to at else null
-        }.minByOrNull { it.second } ?: return null
-        val after = line.substring(label.second + label.first.length)
-        return firstMoneyToken(after) ?: yenAmounts(after).firstOrNull()
-    }
+    private fun isGoodsTotalLine(compact: String): Boolean =
+        compact.contains("商品总价") || compact.contains("商品總價")
 
     private fun paidAt(lines: List<String>, index: Int): Pair<Double?, Int> {
-        amountAfterPaidLabel(lines[index])?.let { return it to index }
         val ship = shipOnLines(lines)
         val below = amountAfterPaidLine(lines, index, ship)
         return if (below != null) below to index else null to index
@@ -243,7 +238,7 @@ object XianyuRuleTextExtractor {
     }
 
     private fun String.substringAfterPaidLabel(): String {
-        val labels = listOf("实付款", "實付款", "实付", "實付")
+        val labels = listOf("实付款", "實付款", "商品总价", "商品總價", "实付", "實付")
         val label = labels.mapNotNull { token ->
             val at = indexOf(token)
             if (at >= 0) token to at else null
@@ -264,6 +259,7 @@ object XianyuRuleTextExtractor {
 
     private fun isProductTitleLine(compact: String): Boolean {
         if (compact.contains("运费") || compact.contains("运費") || compact.contains("实付")) return false
+        if (compact.contains("商品总价") || compact.contains("商品總價")) return false
         val han = compact.count { it in '\u4e00'..'\u9fff' }
         return han >= 4
     }
@@ -281,12 +277,6 @@ object XianyuRuleTextExtractor {
     private fun sameMoney(a: Double?, b: Double?): Boolean {
         if (a == null || b == null) return false
         return abs(a - b) < 0.001
-    }
-
-    /** Một số tiền, không xóa khoảng trắng nên không dính 13.1 với 14.9 thành số khác. */
-    private fun firstMoneyToken(text: String): Double? {
-        val match = Regex("""[¥￥]?\s*(\d{1,4}(?:[.,]\d{1,2})?)""").find(text) ?: return null
-        return parseMoneyToken(match.groupValues[1])?.takeIf { it > 0.0 && it < 100_000.0 }
     }
 
     /** Số trên dòng nhãn, có hoặc không có ký hiệu ¥. */
