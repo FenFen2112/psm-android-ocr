@@ -15,7 +15,11 @@ import android.os.HandlerThread
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.WindowManager
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.resume
 
 private const val TAG = "ScreenCaptureHelper"
@@ -41,6 +45,17 @@ class ScreenCaptureHelper(private val context: Context) {
     @Volatile
     private var isReleasing = false
 
+    /** Token đã đưa vào getMediaProjection — Android chỉ cho dùng một lần. */
+    @Volatile
+    private var tokenSpent = false
+
+    private var captureWidth = 0
+    private var captureHeight = 0
+    private val captureMutex = Mutex()
+
+    fun hasLiveProjection(): Boolean =
+        mediaProjection != null && virtualDisplay != null && imageReader != null && backgroundHandler != null
+
     private val projectionCallback = object : MediaProjection.Callback() {
         override fun onStop() {
             Log.w(TAG, "MediaProjection stopped by system — releasing resources")
@@ -57,64 +72,100 @@ class ScreenCaptureHelper(private val context: Context) {
         }
     }
 
+    /**
+     * Giữ một MediaProjection + VirtualDisplay cho cả phiên bong bóng.
+     * Lần quét sau chỉ lấy frame mới, không gọi lại hộp thoại quyền.
+     */
     suspend fun capture(
         grant: CaptureBridge.ProjectionGrant.Granted,
-    ): CaptureBridge.CaptureResult {
-        return try {
-            val metrics = realDisplayMetrics()
-            val width = metrics.widthPixels
-            val height = metrics.heightPixels
-            val density = metrics.densityDpi
-
-            Log.d(TAG, "Capture start: ${width}x${height} @${density}dpi")
-
-            startBackgroundThread()
-            val handler = backgroundHandler
-                ?: return CaptureBridge.CaptureResult.Failure("Không khởi tạo được thread chụp.")
-
-            val reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, MAX_IMAGES_IN_FLIGHT)
-            imageReader = reader
-
-            val projManager = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-            val projection = projManager.getMediaProjection(grant.resultCode, grant.data)
-                ?: return CaptureBridge.CaptureResult.Failure("MediaProjection null.")
-            mediaProjection = projection
-
-            projection.registerCallback(projectionCallback, handler)
-
-            virtualDisplay = projection.createVirtualDisplay(
-                VIRTUAL_DISPLAY_NAME,
-                width,
-                height,
-                density,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                reader.surface,
-                null,
-                handler,
-            )
-
-            val bitmap = try {
-                awaitFirstBitmap(reader, width, height, handler)
-            } finally {
-                unregisterProjectionCallbackSafe()
-                releaseCaptureResources()
+    ): CaptureBridge.CaptureResult = captureMutex.withLock {
+        try {
+            val reusing = hasLiveProjection()
+            if (!reusing) {
+                openSession(grant)?.let { return@withLock it }
+            } else if (displaySizeChanged()) {
+                Log.w(TAG, "Display size changed — projection needs a new grant")
+                tokenSpent = true
+                release()
+                return@withLock CaptureBridge.CaptureResult.Failure(
+                    "Màn hình đổi kích thước. Hãy quét lại để cấp quyền chụp.",
+                )
+            } else {
+                delay(80)
             }
-
+            val reader = imageReader
+            val handler = backgroundHandler
+            if (reader == null || handler == null || captureWidth <= 0 || captureHeight <= 0) {
+                return@withLock CaptureBridge.CaptureResult.Failure("Phiên chụp chưa sẵn sàng.")
+            }
+            val bitmap = awaitNextBitmap(reader, captureWidth, captureHeight, handler)
             if (bitmap != null) {
-                Log.d(TAG, "Capture success: ${bitmap.width}x${bitmap.height}")
+                Log.d(TAG, "Capture success: ${bitmap.width}x${bitmap.height} reuse=$reusing")
                 CaptureBridge.CaptureResult.Success(bitmap)
             } else {
                 CaptureBridge.CaptureResult.Failure("Không lấy được frame từ màn hình.")
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "capture() exception", e)
-            unregisterProjectionCallbackSafe()
-            releaseCaptureResources()
+            tokenSpent = true
+            release()
             CaptureBridge.CaptureResult.Failure("Lỗi capture: ${e.message}")
         }
     }
 
-    private suspend fun awaitFirstBitmap(
+    /** @return lỗi nếu không mở được phiên; null khi VirtualDisplay đang chạy. */
+    private fun openSession(grant: CaptureBridge.ProjectionGrant.Granted): CaptureBridge.CaptureResult.Failure? {
+        val metrics = realDisplayMetrics()
+        val width = metrics.widthPixels
+        val height = metrics.heightPixels
+        val density = metrics.densityDpi
+        Log.d(TAG, "Open projection: ${width}x${height} @${density}dpi")
+
+        startBackgroundThread()
+        val handler = backgroundHandler
+            ?: return CaptureBridge.CaptureResult.Failure("Không khởi tạo được thread chụp.")
+
+        val reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, MAX_IMAGES_IN_FLIGHT)
+        imageReader = reader
+        captureWidth = width
+        captureHeight = height
+
+        val projManager = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        tokenSpent = true
+        val projection = try {
+            projManager.getMediaProjection(grant.resultCode, grant.data)
+        } catch (e: Exception) {
+            Log.e(TAG, "getMediaProjection failed", e)
+            null
+        }
+        ScreenCaptureSession.clear(context)
+        if (projection == null) {
+            releaseCaptureResources()
+            return CaptureBridge.CaptureResult.Failure("MediaProjection null. Hãy cấp quyền chụp lại.")
+        }
+        mediaProjection = projection
+        projection.registerCallback(projectionCallback, handler)
+        virtualDisplay = projection.createVirtualDisplay(
+            VIRTUAL_DISPLAY_NAME,
+            width,
+            height,
+            density,
+            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+            reader.surface,
+            null,
+            handler,
+        )
+        return null
+    }
+
+    private fun displaySizeChanged(): Boolean {
+        val metrics = realDisplayMetrics()
+        return metrics.widthPixels != captureWidth || metrics.heightPixels != captureHeight
+    }
+
+    private suspend fun awaitNextBitmap(
         reader: ImageReader,
         width: Int,
         height: Int,
@@ -164,13 +215,19 @@ class ScreenCaptureHelper(private val context: Context) {
             handler.postDelayed({ tryAcquire("retry") }, RETRY_MS)
         }
 
+        drain(reader)
         reader.setOnImageAvailableListener({ tryAcquire("callback") }, handler)
         handler.post { tryAcquire("kick") }
 
         cont.invokeOnCancellation {
             reader.setOnImageAvailableListener(null, null)
-            unregisterProjectionCallbackSafe()
-            releaseCaptureResources()
+        }
+    }
+
+    private fun drain(reader: ImageReader) {
+        while (true) {
+            val image = reader.acquireLatestImage() ?: break
+            runCatching { image.close() }
         }
     }
 
@@ -251,6 +308,8 @@ class ScreenCaptureHelper(private val context: Context) {
 
         runCatching { mediaProjection?.stop() }
         mediaProjection = null
+        captureWidth = 0
+        captureHeight = 0
 
         stopBackgroundThread()
         isReleasing = false
@@ -261,5 +320,9 @@ class ScreenCaptureHelper(private val context: Context) {
      */
     fun release() {
         releaseCaptureResources()
+        if (tokenSpent) {
+            ScreenCaptureSession.clear(context)
+            tokenSpent = false
+        }
     }
 }

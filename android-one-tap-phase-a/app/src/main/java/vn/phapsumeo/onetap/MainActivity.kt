@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit
 import vn.phapsumeo.onetap.databinding.ActivityMainBinding
 import vn.phapsumeo.onetap.gas.GasClient
 import vn.phapsumeo.onetap.gas.GasPayloadBuilder
+import vn.phapsumeo.onetap.capture.ScreenCaptureSession
 import vn.phapsumeo.onetap.model.OrderDraft
 import vn.phapsumeo.onetap.ocr.OcrFacade
 import vn.phapsumeo.onetap.overlay.BubbleOverlayService
@@ -111,6 +112,7 @@ class MainActivity : AppCompatActivity() {
     private val projectionLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK && result.data != null) {
             result.data?.let { data ->
+                ScreenCaptureSession.save(this, result.resultCode, data)
                 Toast.makeText(this, "Đã cấp quyền chụp màn hình.", Toast.LENGTH_SHORT).show()
                 startBubbleService()
             }
@@ -989,7 +991,10 @@ class MainActivity : AppCompatActivity() {
             startActivity(i)
             return
         }
-        // Luôn xin quyền mới để đảm bảo MediaProjection token không bị stale trên Android 14
+        if (ScreenCaptureSession.hasPermissionToken(this)) {
+            startBubbleService()
+            return
+        }
         requestScreenCapturePermission()
     }
 

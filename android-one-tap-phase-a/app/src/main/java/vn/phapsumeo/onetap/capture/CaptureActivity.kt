@@ -28,9 +28,8 @@ import kotlinx.coroutines.launch
  * Activity đọc [EXTRA_SESSION_ID] từ Intent và đính vào [CaptureBridge.ProjectionGrant].
  * Service filter `.first { it.sessionId == expectedId }` để không nhận grant cũ.
  *
- * ### Android 14 — token không tái sử dụng
- * Từ API 34, mỗi lần muốn chụp phải xin lại quyền. BubbleOverlayService start lại
- * Activity này mỗi lần tap. Không cache token.
+ * Chỉ mở khi phiên bong bóng chưa có MediaProjection đang chạy.
+ * Các lần quét sau trong cùng phiên không vào Activity này.
  */
 class CaptureActivity : AppCompatActivity() {
 
