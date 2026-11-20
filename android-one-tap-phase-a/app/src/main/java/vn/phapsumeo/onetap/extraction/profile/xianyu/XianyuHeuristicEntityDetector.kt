@@ -31,7 +31,10 @@ class XianyuHeuristicEntityDetector : EntityDetector {
 
         val trangThai = extractStatusSnippet(fullText)
         var maDonHang = ""
-        ORDER_REGEX.find(fullText)?.let { maDonHang = it.groupValues[1].replace(" ", "") }
+        ORDER_REGEX.find(fullText)?.let {
+            val id = it.groupValues[1].replace(" ", "")
+            if (id.length >= 16 && !Regex("""^1[3-9]\d{9}$""").matches(id)) maDonHang = id
+        }
 
         var maVc = ""
         if (shouldParseTracking(fullText)) {
@@ -149,6 +152,7 @@ class XianyuHeuristicEntityDetector : EntityDetector {
             "đường", "thành phố", "bằng tường", "sùng tả", "nanda", "bình dương", "khu tự trị",
             "自治区", "崇左市", "凭祥市", "凭样镇", "南大路",
             "订单", "成交", "50g", "¥", "￥", "复制",
+            "确认收货", "自动确认",
         )
         if (blacklist.any { txt.contains(it) }) return -10000
 

@@ -20,7 +20,12 @@ data class OrderDraft(
     val tongTienDaXacMinh: Boolean = false,
 ) {
     fun giaGocForGas(): String {
-        val v = tongCn ?: ((giaHangCn ?: 0.0) + (shipNoiDiaCn ?: 0.0))
-        return if (v < 0.0) "0" else (kotlin.math.round(v * 100.0) / 100.0).toString()
+        val v = tongCn ?: if (giaHangCn != null || shipNoiDiaCn != null) {
+            (giaHangCn ?: 0.0) + (shipNoiDiaCn ?: 0.0)
+        } else {
+            return ""
+        }
+        if (v <= 0.0) return ""
+        return (kotlin.math.round(v * 100.0) / 100.0).toString()
     }
 }

@@ -134,6 +134,7 @@ object BubbleMultiRegionOcr {
         if (Regex("1[3-9]\\d{9}").containsMatchIn(t)) return true
         if (t.contains("复制") && t.length < 20) return true
         if (t == "专人专拍" || (t.contains("专人专拍") && t.length <= 8)) return true
+        if (t.contains("确认收货") || t.contains("自动确认")) return true
         if (t.startsWith("￥") || t.startsWith("¥")) return true
         if (Regex("^\\d+[.,]?\\d*$").matches(t)) return true
         if (t.contains("Hãykiênnhẫn") || t.contains("chờđợi")) return true
