@@ -16,59 +16,25 @@ data class OrderDraft(
     val tenTab: String = "Trung Quốc",
     val sheetName: String = "Tháng 5",
     val sharedImageUri: String = "",
-    /** Một URI cho mỗi ảnh sản phẩm, cùng thứ tự với [giaTungMon]. */
+    /** Ảnh sản phẩm đã cắt. Sheet chỉ dùng ảnh đầu, đại diện cho cả đơn. */
     val productImageUris: List<String> = emptyList(),
-    /** Giá đang bán từng món. Không cộng phí, không lấy giá gạch. */
-    val giaTungMon: List<Double?> = emptyList(),
-    /** Hơn một dòng sản phẩm trên cùng một đơn. */
+    /** Hơn một dòng sản phẩm trên cùng một đơn. Sheet vẫn là một dòng. */
     val nhieuSanPham: Boolean = false,
     /** 商品总价 + 运费 khớp 成交价 (regex / kiểm tra UI). */
     val tongTienDaXacMinh: Boolean = false,
 ) {
-    fun sheetImageUris(): List<String> {
-        val all = productImageUris.filter { it.isNotBlank() }
-        if (all.isNotEmpty()) return all
-        return listOf(sharedImageUri).filter { it.isNotBlank() }
+    /** Một ảnh đại diện. Công thức IMAGE của sheet không nhận nhiều link. */
+    fun sheetImageUri(): String {
+        return productImageUris.firstOrNull { it.isNotBlank() }
+            ?: sharedImageUri.takeIf { it.isNotBlank() }
+            .orEmpty()
     }
-
-    /** Giá sheet của một món. Không dùng tổng đơn và không cộng phí vận chuyển. */
-    fun giaGocForGas(): String = moneyOrBlank(giaHangCn)
-
-    fun shipForGas(): String = moneyOrBlank(shipNoiDiaCn)
-
-    fun tongForGas(): String = moneyOrBlank(tongCn)
 
     /**
-     * Một dòng sheet cho mỗi sản phẩm. 运费 và 实付款 đi kèm đơn, không cộng vào giá món.
+     * Ô giá sheet là 实付款. Không lấy giá từng món và không lấy tổng giá hàng (23).
+     * Thiếu thực trả thì để trống, không ghi 0.
      */
-    fun sheetRows(): List<OrderDraft> {
-        val names = tenSanPham.lines().map { it.trim() }.filter { it.isNotEmpty() }
-        val prices = giaTungMon
-        val photos = sheetImageUris()
-        if (names.size <= 1 && prices.size <= 1) {
-            val photo = photos.firstOrNull().orEmpty()
-            return listOf(
-                copy(
-                    tenSanPham = names.firstOrNull() ?: tenSanPham.trim(),
-                    giaHangCn = prices.firstOrNull() ?: giaHangCn,
-                    sharedImageUri = photo,
-                    productImageUris = listOf(photo).filter { it.isNotBlank() },
-                    nhieuSanPham = false,
-                ),
-            )
-        }
-        return names.mapIndexed { index, name ->
-            val photo = photos.getOrNull(index).orEmpty()
-            copy(
-                tenSanPham = name,
-                giaHangCn = prices.getOrNull(index),
-                giaTungMon = listOf(prices.getOrNull(index)),
-                sharedImageUri = photo,
-                productImageUris = listOf(photo).filter { it.isNotBlank() },
-                nhieuSanPham = false,
-            )
-        }
-    }
+    fun giaGocForGas(): String = moneyOrBlank(tongCn)
 
     private fun moneyOrBlank(value: Double?): String {
         if (value == null || value <= 0.0) return ""

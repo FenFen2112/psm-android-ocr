@@ -703,12 +703,8 @@ class BubbleOverlayService : Service() {
             if (!ocrDatasetRecordId.isNullOrBlank()) {
                 putExtra(MainActivity.EXTRA_OCR_DATASET_RECORD_ID, ocrDatasetRecordId)
             }
-            putExtra("bubble_image_uri", draft.sheetImageUris().firstOrNull() ?: imageUri)
-            putExtra("bubble_product_images", draft.productImageUris.joinToString("\n"))
-            putExtra(
-                "bubble_item_prices",
-                draft.giaTungMon.joinToString("\n") { it?.toString().orEmpty() },
-            )
+            putExtra("bubble_image_uri", draft.sheetImageUri().ifBlank { imageUri.orEmpty() })
+            putExtra("bubble_product_images", draft.sheetImageUri())
             putExtra(MainActivity.EXTRA_CROP_DEBUG_IMAGE_URI, cropDebugAnnotatedUri)
             putExtra(MainActivity.EXTRA_TITLE_REGION_OCR, titleRegionOcr)
             putExtra(MainActivity.EXTRA_PRICE_REGION_OCR, priceRegionOcr)
@@ -1016,7 +1012,7 @@ class BubbleOverlayService : Service() {
         // #endregion
     }
 
-    /** Một ảnh cho mỗi hàng sản phẩm. Không có ảnh thì dùng cả thẻ. */
+    /** Một ảnh sản phẩm phía trên, đại diện cho cả đơn. */
     private fun saveProductPhotos(full: Bitmap, card: Bitmap, cardRect: Rect?): List<String> {
         val local = ThumbnailCropDetector.findStackedProductRects(card)
         val originLeft = cardRect?.left ?: 0
@@ -1035,6 +1031,7 @@ class BubbleOverlayService : Service() {
             } finally {
                 if (photo !== full && !photo.isRecycled) photo.recycle()
             }
+            if (uris.isNotEmpty()) break
         }
         if (uris.isEmpty()) {
             saveBitmapToCache(card, 0)?.let { uris += it }

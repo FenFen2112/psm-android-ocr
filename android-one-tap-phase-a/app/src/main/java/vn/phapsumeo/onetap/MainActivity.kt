@@ -97,7 +97,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var retryHistoryStore: RetryHistoryStore
     private var sharedImageUri: String = ""
     private var productImageUris: List<String> = emptyList()
-    private var productPrices: List<Double?> = emptyList()
     /** Parser snapshot for dataset `user_submit` diff (bubble preview, OCR run, or parse). */
     private var initialDraftForDataset: OrderDraft? = null
     /** Parent `record_id` from bubble capture when preview opened from bubble. */
@@ -368,16 +367,14 @@ class MainActivity : AppCompatActivity() {
             },
             tenSanPham = binding.edtProduct.text?.toString().orEmpty().trim(),
             tenSanPhamDichThamKhao = binding.txtProductTitleVi.text?.toString().orEmpty().trim(),
-            giaHangCn = if (productPrices.size > 1) null else productPrices.firstOrNull() ?: h,
-            giaTungMon = productPrices.ifEmpty { listOfNotNull(h) },
+            giaHangCn = h,
             shipNoiDiaCn = s,
             tongCn = t,
             tenTab = binding.edtTab.text?.toString().orEmpty().ifBlank { "Trung Quốc" },
             sheetName = binding.spinnerSheetMonth.text?.toString().orEmpty().trim(),
             sharedImageUri = sharedImageUri,
             productImageUris = productImageUris,
-            nhieuSanPham = productPrices.size > 1 ||
-                binding.edtProduct.text?.toString().orEmpty().lines().count { it.isNotBlank() } > 1,
+            nhieuSanPham = binding.edtProduct.text?.toString().orEmpty().contains('+'),
             tongTienDaXacMinh = XianyuRuleTextExtractor.sumMatchesTotal(h, s, t),
         )
     }
@@ -457,12 +454,6 @@ class MainActivity : AppCompatActivity() {
             .lines()
             .map { it.trim() }
             .filter { it.isNotEmpty() }
-        val priceExtra = intent.getStringExtra("bubble_item_prices")
-        productPrices = if (priceExtra.isNullOrBlank()) {
-            emptyList()
-        } else {
-            priceExtra.lines().map { it.trim().toDoubleOrNull() }
-        }
         if (productImageUris.isEmpty() && !imageUri.isNullOrBlank()) {
             productImageUris = listOf(imageUri)
         }

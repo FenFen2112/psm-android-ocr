@@ -32,28 +32,24 @@ class GasClient(private val context: Context) {
     ): JSONObject = withContext(Dispatchers.IO) {
         if (gasUrl.isBlank()) error("Thiếu GAS URL")
         if (hmacSecret.isBlank()) error("Thiếu HMAC secret")
-        var last = JSONObject()
-        for (row in draft.sheetRows()) {
-            val imageUrl = ensureImageUrl(gasUrl, hmacSecret, row.sharedImageUri)
-            val businessPayload = JSONObject()
-                .put("linkGoc", "")
-                .put("giaGoc", row.giaGocForGas())
-                .put("linkAnh", imageUrl)
-                .put("maDonHang", row.maDonHang)
-                .put("maVanChuyen", row.maVanChuyen)
-                .put("trangThaiDon", row.trangThaiDon)
-                .put("tenTab", row.tenTab)
-                .put("tenSanPham", row.tenSanPham)
-                .put("tenSanPhamMulti", false)
-                .put("shipNoiDiaCn", row.shipForGas())
-                .put("tongCn", row.tongForGas())
-            last = postSigned(gasUrl, hmacSecret, businessPayload)
-            if (last.optString("status") != "success") {
-                val msg = last.optString("message", "GAS từ chối request")
-                throw IllegalStateException(msg)
-            }
+        val imageUrl = ensureImageUrl(gasUrl, hmacSecret, draft.sheetImageUri())
+        val businessPayload = JSONObject()
+            .put("linkGoc", "")
+            .put("giaGoc", draft.giaGocForGas())
+            .put("linkAnh", imageUrl)
+            .put("maDonHang", draft.maDonHang)
+            .put("maVanChuyen", draft.maVanChuyen)
+            .put("trangThaiDon", draft.trangThaiDon)
+            .put("tenTab", draft.tenTab)
+            .put("tenSanPham", draft.tenSanPham)
+            .put("tenSanPhamMulti", false)
+
+        val json = postSigned(gasUrl, hmacSecret, businessPayload)
+        if (json.optString("status") != "success") {
+            val msg = json.optString("message", "GAS từ chối request")
+            throw IllegalStateException(msg)
         }
-        last
+        json
     }
 
     private fun ensureImageUrl(gasUrl: String, hmacSecret: String, sharedImageUri: String): String {

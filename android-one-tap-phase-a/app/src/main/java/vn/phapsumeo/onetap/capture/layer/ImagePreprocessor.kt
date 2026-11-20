@@ -245,7 +245,7 @@ class OrderCardCropPreprocessor : ImagePreprocessor {
 
         /** Thẻ đơn theo tỉ lệ chiều cao màn hình (không phải pixel cố định). */
         private const val ORDER_CARD_TOP_FRAC = 0.045f
-        private const val ORDER_CARD_BOTTOM_FRAC = 0.78f
+        private const val ORDER_CARD_BOTTOM_FRAC = 0.90f
 
         private const val THUMB_SEARCH_SKIP_TOP_FRAC = 0.11f
         private const val THUMB_SEARCH_BOTTOM_FRAC = 0.50f
@@ -254,7 +254,7 @@ class OrderCardCropPreprocessor : ImagePreprocessor {
         private const val THUMB_FALLBACK_SIDE_FRAC = 0.30f
 
         /** Chiều cao vùng chỉ chứa block giá (成交价/商品总价/运费), tỉ lệ trên chiều cao thẻ. */
-        private const val PRICE_TEXT_BAND_HEIGHT_FRAC = 0.24f
-        private const val PRICE_BAND_MAX_BOTTOM_FRAC = 0.88f
+        private const val PRICE_TEXT_BAND_HEIGHT_FRAC = 0.42f
+        private const val PRICE_BAND_MAX_BOTTOM_FRAC = 0.96f
     }
 }
