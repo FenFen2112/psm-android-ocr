@@ -3,7 +3,10 @@ package vn.phapsumeo.onetap.gas
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
 import android.net.Uri
+import androidx.core.content.FileProvider
 import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -13,6 +16,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
 import vn.phapsumeo.onetap.model.OrderDraft
 
@@ -32,7 +37,7 @@ class GasClient(private val context: Context) {
     ): JSONObject = withContext(Dispatchers.IO) {
         if (gasUrl.isBlank()) error("Thiếu GAS URL")
         if (hmacSecret.isBlank()) error("Thiếu HMAC secret")
-        val imageUrl = ensureImageUrl(gasUrl, hmacSecret, draft.sheetImageUri())
+        val imageUrl = ensureImageUrl(gasUrl, hmacSecret, sheetPhotoUri(draft))
         val businessPayload = JSONObject()
             .put("linkGoc", "")
             .put("giaGoc", draft.giaGocForGas())
@@ -50,6 +55,65 @@ class GasClient(private val context: Context) {
             throw IllegalStateException(msg)
         }
         json
+    }
+
+    /**
+     * Sheet chỉ có một công thức IMAGE. Nhiều món thì ghép dọc các ảnh món
+     * thành một ảnh, để cả 2 hoặc 3 món hiện trên cùng dòng.
+     */
+    private fun sheetPhotoUri(draft: OrderDraft): String {
+        val uris = draft.productImageUris.filter { it.isNotBlank() }.ifEmpty {
+            listOf(draft.sharedImageUri).filter { it.isNotBlank() }
+        }
+        if (uris.size <= 1) return uris.firstOrNull().orEmpty()
+        return stackProductPhotos(uris) ?: uris.first()
+    }
+
+    private fun stackProductPhotos(uris: List<String>): String? {
+        val bitmaps = uris.mapNotNull { raw ->
+            val parsed = runCatching { Uri.parse(raw) }.getOrNull() ?: return@mapNotNull null
+            context.contentResolver.openInputStream(parsed)?.use { BitmapFactory.decodeStream(it) }
+        }
+        if (bitmaps.size < 2) {
+            bitmaps.forEach { if (!it.isRecycled) it.recycle() }
+            return null
+        }
+        val gap = 8
+        val width = bitmaps.maxOf { it.width }.coerceIn(1, 1080)
+        val scaled = bitmaps.map { bmp ->
+            if (bmp.width == width) bmp
+            else {
+                val h = (bmp.height * (width.toFloat() / bmp.width)).toInt().coerceAtLeast(1)
+                Bitmap.createScaledBitmap(bmp, width, h, true).also {
+                    if (it !== bmp && !bmp.isRecycled) bmp.recycle()
+                }
+            }
+        }
+        val height = scaled.sumOf { it.height } + gap * (scaled.size - 1)
+        val out = Bitmap.createBitmap(width, height.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        canvas.drawColor(Color.WHITE)
+        var y = 0
+        for (bmp in scaled) {
+            canvas.drawBitmap(bmp, 0f, y.toFloat(), null)
+            y += bmp.height + gap
+            if (!bmp.isRecycled) bmp.recycle()
+        }
+        return try {
+            val file = File(context.cacheDir, "bubble_sheet_${System.currentTimeMillis()}.jpg")
+            FileOutputStream(file).use { stream ->
+                out.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+            }
+            FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file,
+            ).toString()
+        } catch (_: Exception) {
+            null
+        } finally {
+            if (!out.isRecycled) out.recycle()
+        }
     }
 
     private fun ensureImageUrl(gasUrl: String, hmacSecret: String, sharedImageUri: String): String {

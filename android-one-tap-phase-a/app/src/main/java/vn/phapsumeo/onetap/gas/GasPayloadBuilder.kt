@@ -8,7 +8,9 @@ object GasPayloadBuilder {
         return JSONObject()
             .put("linkGoc", "")
             .put("giaGoc", draft.giaGocForGas())
-            .put("linkAnh", draft.sheetImageUri())
+            .put("linkAnh", draft.productImageUris.filter { it.isNotBlank() }.ifEmpty {
+                listOf(draft.sheetImageUri()).filter { it.isNotBlank() }
+            }.joinToString("\n"))
             .put("maDonHang", draft.maDonHang)
             .put("maVanChuyen", draft.maVanChuyen)
             .put("trangThaiDon", draft.trangThaiDon)

@@ -704,7 +704,12 @@ class BubbleOverlayService : Service() {
                 putExtra(MainActivity.EXTRA_OCR_DATASET_RECORD_ID, ocrDatasetRecordId)
             }
             putExtra("bubble_image_uri", draft.sheetImageUri().ifBlank { imageUri.orEmpty() })
-            putExtra("bubble_product_images", draft.sheetImageUri())
+            putExtra(
+                "bubble_product_images",
+                draft.productImageUris.filter { it.isNotBlank() }
+                    .ifEmpty { listOfNotNull(draft.sheetImageUri().takeIf { it.isNotBlank() }) }
+                    .joinToString("\n"),
+            )
             putExtra(MainActivity.EXTRA_CROP_DEBUG_IMAGE_URI, cropDebugAnnotatedUri)
             putExtra(MainActivity.EXTRA_TITLE_REGION_OCR, titleRegionOcr)
             putExtra(MainActivity.EXTRA_PRICE_REGION_OCR, priceRegionOcr)
@@ -1012,7 +1017,7 @@ class BubbleOverlayService : Service() {
         // #endregion
     }
 
-    /** Một ảnh sản phẩm phía trên, đại diện cho cả đơn. */
+    /** Mỗi món một ảnh. 1 món 1 ảnh, 2 món 2 ảnh. Không lấy banner shop. */
     private fun saveProductPhotos(full: Bitmap, card: Bitmap, cardRect: Rect?): List<String> {
         val local = ThumbnailCropDetector.findStackedProductRects(card)
         val originLeft = cardRect?.left ?: 0
@@ -1031,7 +1036,6 @@ class BubbleOverlayService : Service() {
             } finally {
                 if (photo !== full && !photo.isRecycled) photo.recycle()
             }
-            if (uris.isNotEmpty()) break
         }
         if (uris.isEmpty()) {
             val fallback = ThumbnailCropDetector.fallbackCropRect(

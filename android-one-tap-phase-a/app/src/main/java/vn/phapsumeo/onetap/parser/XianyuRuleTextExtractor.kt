@@ -143,13 +143,19 @@ object XianyuRuleTextExtractor {
         )
     }
 
-    /** Chỉ số trên dòng 实付款. Không cộng giá món, giá gạch hay phí. */
+    /**
+     * Số của 实付款. Nhãn và số có thể không cùng dòng (`实付款、` rồi `¥26.5`).
+     * Không lấy 2.9 của 运费, không cộng giá món.
+     */
     fun paidFromText(text: String): Double? {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        val ship = shipOnLines(lines)
         for (i in lines.indices) {
             if (!isPaidLine(lines[i].replace(" ", ""))) continue
             amountAfterPaidLabel(lines[i])?.let { return it }
-            loneAmount(lines.getOrNull(i + 1).orEmpty())?.let { return it }
+            amountAfterPaidLine(lines, i, ship)?.let { return it }
+            val above = loneAmount(stripPriceNoise(lines.getOrNull(i - 1).orEmpty()))
+            if (above != null && !sameMoney(above, ship)) return above
         }
         return null
     }
@@ -215,9 +221,57 @@ object XianyuRuleTextExtractor {
 
     private fun paidAt(lines: List<String>, index: Int): Pair<Double?, Int> {
         amountAfterPaidLabel(lines[index])?.let { return it to index }
-        val next = lines.getOrNull(index + 1)
-        val below = next?.let { loneAmount(it) }
-        return if (below != null) below to index + 1 else null to index
+        val ship = shipOnLines(lines)
+        val below = amountAfterPaidLine(lines, index, ship)
+        return if (below != null) below to index else null to index
+    }
+
+    /**
+     * Số ở dòng dưới nhãn. Cột trái là chữ, cột phải là số thì 2.9 đứng trước ¥26.5;
+     * lấy số cuối của cụm phí (实付款), không lấy phí ship.
+     */
+    private fun amountAfterPaidLine(lines: List<String>, index: Int, ship: Double?): Double? {
+        val end = minOf(lines.lastIndex, index + 4)
+        val amounts = mutableListOf<Double>()
+        for (j in (index + 1)..end) {
+            val compact = lines[j].replace(" ", "")
+            if (compact.contains("订单") || compact.contains("下单") || compact.contains("支付宝")) break
+            if (compact.contains("运费") || compact.contains("运費")) continue
+            val amount = priceLineAmount(lines[j]) ?: continue
+            if (amounts.any { sameMoney(it, amount) }) continue
+            amounts += amount
+        }
+        val unpaid = amounts.filterNot { sameMoney(it, ship) }
+        if (unpaid.isEmpty()) return null
+        val feeLabel = lines.any {
+            val compact = it.replace(" ", "")
+            compact.contains("运费") || compact.contains("运費")
+        }
+        return if (feeLabel && unpaid.size >= 2) unpaid.last() else unpaid.first()
+    }
+
+    private fun priceLineAmount(line: String): Double? {
+        val yen = yenAmounts(line)
+        if (yen.size == 1) return yen.first()
+        return loneAmount(stripPriceNoise(line))
+    }
+
+    private fun stripPriceNoise(line: String): String =
+        line.trim().trim('、', '，', '。', '元', '：', ':', '（', '）', '(', ')')
+
+    private fun shipOnLines(lines: List<String>): Double? {
+        for (i in lines.indices) {
+            val compact = lines[i].replace(" ", "")
+            if (compact.contains("运费") || compact.contains("运費")) {
+                return feeAmount(lines, i).first
+            }
+        }
+        return null
+    }
+
+    private fun sameMoney(a: Double?, b: Double?): Boolean {
+        if (a == null || b == null) return false
+        return abs(a - b) < 0.001
     }
 
     /** Một số tiền, không xóa khoảng trắng nên không dính 13.1 với 14.9 thành số khác. */

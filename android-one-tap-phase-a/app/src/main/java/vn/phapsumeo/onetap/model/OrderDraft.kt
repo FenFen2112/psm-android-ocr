@@ -16,7 +16,7 @@ data class OrderDraft(
     val tenTab: String = "Trung Quốc",
     val sheetName: String = "Tháng 5",
     val sharedImageUri: String = "",
-    /** Ảnh sản phẩm đã cắt. Sheet chỉ dùng ảnh đầu, đại diện cho cả đơn. */
+    /** Mỗi món một ảnh. Sheet ghép các ảnh này vào một ô IMAGE. */
     val productImageUris: List<String> = emptyList(),
     /** Hơn một dòng sản phẩm trên cùng một đơn. Sheet vẫn là một dòng. */
     val nhieuSanPham: Boolean = false,
