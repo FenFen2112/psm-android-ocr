@@ -151,9 +151,9 @@ object ThumbnailCropDetector {
         val cy = (r.top + r.bottom) / 2f / ih
         return when {
             cy < 0.07f -> 0.42f
-            cy < 0.10f -> 0.68f
-            cy < 0.13f -> 0.88f
-            cy <= 0.44f -> 1f
+            cy < 0.12f -> 0.55f
+            cy < 0.20f -> 0.40f
+            cy <= 0.46f -> 1f
             else -> 0.92f
         }
     }
@@ -167,16 +167,22 @@ object ThumbnailCropDetector {
         var sum = 0.0
         var sumSq = 0.0
         var gradSum = 0.0
+        var chromaSum = 0.0
         var y = r.top
         while (y < r.bottom) {
             var x = r.left
             while (x < r.right) {
-                val lum = luma(pixel(b, x, y))
+                val p = pixel(b, x, y)
+                val lum = luma(p)
                 sum += lum
                 sumSq += lum * lum
                 val lx = luma(pixel(b, x + 1, y))
                 val ly = luma(pixel(b, x, y + 1))
                 gradSum += abs(lx - lum) + abs(ly - lum)
+                val rr = (p shr 16) and 0xFF
+                val gg = (p shr 8) and 0xFF
+                val bb = p and 0xFF
+                chromaSum += abs(rr - gg) + abs(gg - bb)
                 n++
                 x += st
             }
@@ -186,14 +192,17 @@ object ThumbnailCropDetector {
         val mean = sum / n
         val variance = (sumSq / n - mean * mean).toFloat().coerceAtLeast(0f)
         val gradMean = (gradSum / n).toFloat().coerceAtLeast(0.01f)
-        // Tránh chọn vùng phẳng (nền) hoặc vùng chữ siêu “gai” (giá).
+        val chromaMean = (chromaSum / n).toFloat()
+        // Nền phẳng, hoặc chữ đen trên nền trắng (badge / trạng thái) — không phải ảnh sản phẩm.
         if (variance < 35f) return 0f
+        if (gradMean > 18f && chromaMean < 14f && mean > 185.0) return 0f
         val gradientPenalty = sqrt(gradMean)
         val texture = variance / (6f + gradientPenalty)
+        val colorBonus = (chromaMean / 18f).coerceIn(0.55f, 1.45f)
         val cx = (r.left + r.right) / 2f
         val leftBias = 1f + (0.38f - cx / b.width).coerceIn(0f, 0.38f) * 0.22f
         val sizeBonus = sqrt((r.width() * r.height()).toFloat()) / 90f
-        return texture * leftBias * sizeBonus
+        return texture * leftBias * sizeBonus * colorBonus
     }
 
     private fun mapSmallToFull(r: Rect, sw: Int, sh: Int, fw: Int, fh: Int): Rect {

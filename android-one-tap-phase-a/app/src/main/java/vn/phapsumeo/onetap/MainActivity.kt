@@ -477,7 +477,10 @@ class MainActivity : AppCompatActivity() {
         }
         // #endregion
 
-        binding.txtPayload.text = GasPayloadBuilder.buildPreviewJson(buildCurrentDraft())
+        val shownDraft = bubbleRuleMerged ?: buildCurrentDraft()
+        binding.txtPayload.text = GasPayloadBuilder.buildPreviewJson(shownDraft)
+        binding.txtConfidence.text =
+            "Độ tin cậy: ${OcrDebugUiHeuristic.percent(shownDraft)}% (tự gửi từ ${(autoSubmitThreshold * 100).toInt()}%)"
         startBubblePreviewCountdown()
         refreshOcrDebugOverlay()
         ocrDebugPanel.applyDeveloperModeUi()
@@ -516,9 +519,11 @@ class MainActivity : AppCompatActivity() {
             appendLine()
             appendLine("PRICE OCR:")
             appendLine(if (p.isBlank()) "(empty)" else p.trim())
-            appendLine()
-            appendLine("META OCR:")
-            appendLine(if (m.isBlank()) "(empty)" else m.trim())
+            if (m.isNotBlank() || mb.isNotBlank()) {
+                appendLine()
+                appendLine("META OCR:")
+                appendLine(if (m.isBlank()) "(empty)" else m.trim())
+            }
         }.trimEnd()
         val showCard = hasImage || t.isNotBlank() || p.isNotBlank() || m.isNotBlank() ||
             tb.isNotBlank() || pb.isNotBlank() || mb.isNotBlank() || absPath.isNotBlank()

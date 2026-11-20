@@ -98,24 +98,33 @@ class OrderCardCropPreprocessor : ImagePreprocessor {
                 return PreprocessResult(fullBitmap, null)
             }
 
-            // TITLE: Dịch xuống 55% chiều cao thumb để tránh text trạng thái ("请耐心等待")
+            // TITLE: sát mép phải ảnh, từ đỉnh ảnh. Nửa dưới ảnh là badge (专人专拍), không phải tên.
+            val titleTop = padded.top + thumbLocal.top
+            val titleBottom = (titleTop + (thumbLocal.height() * 0.62f).toInt())
+                .coerceAtMost(padded.top + thumbLocal.bottom)
             val titleRect = Rect(
-                padded.left + thumbLocal.right + dpPx(fullBitmap, 12f),
-                padded.top + thumbLocal.top + (thumbLocal.height() * 0.55f).toInt(),
+                padded.left + thumbLocal.right + dpPx(fullBitmap, 8f),
+                titleTop,
                 padded.right - dpPx(fullBitmap, 8f),
-                padded.top + thumbLocal.top + (thumbLocal.height() * 0.95f).toInt()
+                titleBottom,
             ).let {
                 val clamped = intersectRect(it, fw, fh)
                 Log.d(TAG, "titleRect raw: $it, clamped: $clamped")
                 clamped
             }
 
-            // PRICE: Dịch xuống 58% chiều cao card để tránh địa chỉ
+            // PRICE: ngay dưới hàng sản phẩm (商品总价 / 运费 / 成交价), không lấy tới đáy thẻ (订单编号).
+            val priceTop = padded.top + thumbLocal.bottom + dpPx(fullBitmap, 6f)
+            val priceBand = (thumbLocal.height() * 0.85f).toInt().coerceIn(
+                dpPx(fullBitmap, 72f),
+                (ch * PRICE_TEXT_BAND_HEIGHT_FRAC).toInt().coerceAtLeast(dpPx(fullBitmap, 72f)),
+            )
+            val priceBottomMax = padded.top + (ch * PRICE_BAND_MAX_BOTTOM_FRAC).toInt()
             val priceRect = Rect(
-                (padded.left + cw * 0.40f).toInt(),
-                (padded.top + ch * 0.58f).toInt(),
+                padded.left + (cw * 0.08f).toInt(),
+                priceTop,
                 padded.right - dpPx(fullBitmap, 8f),
-                padded.bottom - dpPx(fullBitmap, 4f)
+                (priceTop + priceBand).coerceAtMost(priceBottomMax),
             ).let {
                 val clamped = intersectRect(it, fw, fh)
                 Log.d(TAG, "priceRect raw: $it, clamped: $clamped")

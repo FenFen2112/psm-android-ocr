@@ -123,8 +123,7 @@ object BubbleMultiRegionOcr {
         return lines
             .filterNot(::looksLikeAddressOrNoise)
             .maxByOrNull { scoreProductTitleLine(it) }
-            ?: lines.maxByOrNull { it.count { ch -> ch in '\u4e00'..'\u9fff' } }
-            ?: ""
+            .orEmpty()
     }
 
     private fun looksLikeAddressOrNoise(s: String): Boolean {
@@ -134,6 +133,7 @@ object BubbleMultiRegionOcr {
         if (t.contains("街道") || t.contains("大道") || t.contains("南路") || t.contains("北路")) return true
         if (Regex("1[3-9]\\d{9}").containsMatchIn(t)) return true
         if (t.contains("复制") && t.length < 20) return true
+        if (t == "专人专拍" || (t.contains("专人专拍") && t.length <= 8)) return true
         if (t.startsWith("￥") || t.startsWith("¥")) return true
         if (Regex("^\\d+[.,]?\\d*$").matches(t)) return true
         if (t.contains("Hãykiênnhẫn") || t.contains("chờđợi")) return true
