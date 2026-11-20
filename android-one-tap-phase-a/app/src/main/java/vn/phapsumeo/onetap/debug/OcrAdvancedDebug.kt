@@ -14,13 +14,19 @@ import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import kotlinx.coroutines.*
+import vn.phapsumeo.onetap.util.PrefsStore
+import java.util.concurrent.TimeUnit
 
 object OcrAdvancedDebug {
     private var basePath: String = ""
     private val history = LinkedList<JSONObject>()
     private const val MAX_HISTORY = 20
     private var server: DebugServer? = null
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(2, TimeUnit.SECONDS)
+        .readTimeout(2, TimeUnit.SECONDS)
+        .writeTimeout(2, TimeUnit.SECONDS)
+        .build()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private var latestScreenshot: Bitmap? = null
@@ -67,12 +73,12 @@ object OcrAdvancedDebug {
             val ts = System.currentTimeMillis()
         val success = parsedTitle.length > 5 && parsedPrice > 0 && confidence > 0.5f
         
-        latestScreenshot = fullBmp?.copy(fullBmp.config ?: Bitmap.Config.ARGB_8888, false)
-        latestTitle = titleBmp?.copy(titleBmp.config ?: Bitmap.Config.ARGB_8888, false)
-        latestPrice = priceBmp?.copy(priceBmp.config ?: Bitmap.Config.ARGB_8888, false)
-        
+        latestScreenshot = replaceHeld(latestScreenshot, copyIfAlive(fullBmp))
+        latestTitle = replaceHeld(latestTitle, copyIfAlive(titleBmp))
+        latestPrice = replaceHeld(latestPrice, copyIfAlive(priceBmp))
+
         val overlayBmp = buildDebugOverlay(fullBmp, titleRect, priceRect, parsedTitle, parsedPrice, confidence)
-        latestOverlay = overlayBmp
+        latestOverlay = replaceHeld(latestOverlay, overlayBmp)
 
         val log = JSONObject().apply {
             put("timestamp", ts)
@@ -103,14 +109,37 @@ object OcrAdvancedDebug {
                 if (history.size > MAX_HISTORY) history.removeLast()
             }
 
-            // Push to PC Dashboard
-            pushToPc(log)
+            pushToPc(context, log)
         } catch (e: Exception) {
             Log.e("PSM_DEBUG", "logOcrRun failed", e)
         }
     }
 
-    private fun pushToPc(log: JSONObject) {
+    private fun ingestUrl(context: Context): String? {
+        val target = PrefsStore(context).debugIngestTarget().trim().trimEnd('/')
+        if (target.isBlank()) return null
+        return if (target.startsWith("http://", ignoreCase = true) ||
+            target.startsWith("https://", ignoreCase = true)
+        ) {
+            if (target.endsWith("/ingest", ignoreCase = true)) target else "$target/ingest"
+        } else {
+            val hostPort = if (target.contains(":")) target else "$target:7478"
+            "http://$hostPort/ingest"
+        }
+    }
+
+    private fun copyIfAlive(src: Bitmap?): Bitmap? {
+        if (src == null || src.isRecycled) return null
+        return src.copy(src.config ?: Bitmap.Config.ARGB_8888, false)
+    }
+
+    private fun replaceHeld(previous: Bitmap?, next: Bitmap?): Bitmap? {
+        if (previous != null && previous !== next && !previous.isRecycled) previous.recycle()
+        return next
+    }
+
+    private fun pushToPc(context: Context, log: JSONObject) {
+        val url = ingestUrl(context) ?: return
         scope.launch {
             try {
                 val payload = JSONObject().apply {
@@ -119,7 +148,7 @@ object OcrAdvancedDebug {
                 }
                 val body = payload.toString().toRequestBody("application/json".toMediaType())
                 val request = Request.Builder()
-                    .url("http://192.168.1.97:7478/ingest")
+                    .url(url)
                     .post(body)
                     .build()
                 client.newCall(request).execute().use { res ->

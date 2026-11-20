@@ -90,7 +90,6 @@ class BubbleOverlayService : Service() {
         super.onCreate()
         captureHelper = ScreenCaptureHelper(this)
         captureLayer = MediaProjectionCaptureLayer(this, captureHelper!!)
-        vn.phapsumeo.onetap.debug.OcrAdvancedDebug.init(this)
         startAsForegroundService()
         setupBubble()
         startIdleMonitor()
@@ -333,7 +332,9 @@ class BubbleOverlayService : Service() {
                 }
                 // #endregion
 
-                val imageUri = saveBitmapToCache(productBmp)
+                val imageUri = withContext(Dispatchers.IO) {
+                    saveBitmapToCache(productBmp)
+                }
                 if (productBmp !== bitmap) productBmp.recycle()
 
                 Log.d("PSM_BUBBLE", "[DEBUG-BUBBLE] image saved: $imageUri")
@@ -385,40 +386,49 @@ class BubbleOverlayService : Service() {
                     )
                 }
 
-                // Advanced Debug Logging - Wrapped in try-catch to prevent bubble freeze
-                try {
-                    vn.phapsumeo.onetap.debug.OcrAdvancedDebug.logOcrRun(
-                        context = this@BubbleOverlayService,
-                        fullBmp = bitmap,
-                        titleBmp = preprocess.titleBitmap,
-                        priceBmp = preprocess.priceBitmap,
-                        titleRaw = mr.titleRegionOcrText,
-                        priceRaw = mr.priceRegionOcrText,
-                        parsedTitle = mr.draft.tenSanPham,
-                        parsedPrice = mr.draft.tongCn ?: 0.0,
-                        confidence = 0.8f,
-                        titleRect = preprocess.titleCropRectInCapture,
-                        priceRect = preprocess.priceCropRectInCapture
-                    )
-                } catch (e: Exception) {
-                    Log.e(TAG, "Debug logging failed, but continuing...", e)
+                // Debug nặng (copy full màn + PNG + server) chỉ khi bật chế độ nhà phát triển, và không chạy trên main.
+                if (bubblePrefs.developerMode()) {
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            vn.phapsumeo.onetap.debug.OcrAdvancedDebug.init(this@BubbleOverlayService)
+                            vn.phapsumeo.onetap.debug.OcrAdvancedDebug.logOcrRun(
+                                context = this@BubbleOverlayService,
+                                fullBmp = bitmap,
+                                titleBmp = preprocess.titleBitmap,
+                                priceBmp = preprocess.priceBitmap,
+                                titleRaw = mr.titleRegionOcrText,
+                                priceRaw = mr.priceRegionOcrText,
+                                parsedTitle = mr.draft.tenSanPham,
+                                parsedPrice = mr.draft.tongCn ?: 0.0,
+                                confidence = 0.8f,
+                                titleRect = preprocess.titleCropRectInCapture,
+                                priceRect = preprocess.priceCropRectInCapture,
+                            )
+                        }.onFailure { e ->
+                            Log.e(TAG, "Debug logging failed, but continuing...", e)
+                        }
+                    }
                 }
 
-                // Luôn vẽ + lưu PNG debug (không phụ thuộc prefs) để preview luôn thấy khung vùng.
-                val cropDebugSave = withContext(Dispatchers.Default) {
-                    runCatching {
-                        val painted = OcrCropRegionsDebugPainter.draw(
-                            bitmap,
-                            preprocess.thumbnailCropRectInCapture,
-                            preprocess.titleCropRectInCapture,
-                            preprocess.priceCropRectInCapture,
-                        )
-                        try {
-                            saveCropDebugBitmapToCache(painted)
-                        } finally {
-                            if (!painted.isRecycled && painted !== bitmap) painted.recycle()
-                        }
-                    }.getOrNull()
+                // Ảnh khung vùng chỉ khi debug. Luồng thường dùng ảnh thẻ đã lưu, không encode full màn thêm lần nữa.
+                val cropDebugSave = if (bubblePrefs.developerMode()) {
+                    withContext(Dispatchers.Default) {
+                        runCatching {
+                            val painted = OcrCropRegionsDebugPainter.draw(
+                                bitmap,
+                                preprocess.thumbnailCropRectInCapture,
+                                preprocess.titleCropRectInCapture,
+                                preprocess.priceCropRectInCapture,
+                            )
+                            try {
+                                saveCropDebugBitmapToCache(painted)
+                            } finally {
+                                if (!painted.isRecycled && painted !== bitmap) painted.recycle()
+                            }
+                        }.getOrNull()
+                    }
+                } else {
+                    null
                 }
                 val cropDebugAnnotatedUri = cropDebugSave?.contentUri
                 val cropDebugAbsPath = cropDebugSave?.absolutePath.orEmpty()
@@ -1000,9 +1010,9 @@ class BubbleOverlayService : Service() {
 
     private fun saveBitmapToCache(bitmap: Bitmap): String? {
         return try {
-            val file = File(cacheDir, "bubble_capture_${System.currentTimeMillis()}.png")
+            val file = File(cacheDir, "bubble_capture_${System.currentTimeMillis()}.jpg")
             FileOutputStream(file).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 92, out)
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
             }
             FileProvider.getUriForFile(
                 this,
@@ -1019,9 +1029,9 @@ class BubbleOverlayService : Service() {
 
     private fun saveCropDebugBitmapToCache(bitmap: Bitmap): CachedCropDebugPng? {
         return try {
-            val file = File(cacheDir, "bubble_crop_debug_${System.currentTimeMillis()}.png")
+            val file = File(cacheDir, "bubble_crop_debug_${System.currentTimeMillis()}.jpg")
             FileOutputStream(file).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 92, out)
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out)
             }
             val path = file.absolutePath
             val uriStr = FileProvider.getUriForFile(
