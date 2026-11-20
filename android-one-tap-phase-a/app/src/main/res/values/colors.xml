@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- PSM brand colors from PWA mobile-sheet.html CSS variables -->
+    <color name="psm_accent">#A44C00</color>
+    <color name="psm_accent_dark">#7C3D0A</color>
+    <color name="psm_accent2">#C1121F</color>
+    <color name="psm_bg">#FAF7F2</color>
+    <color name="psm_card">#FFFFFF</color>
+    <color name="psm_text">#1C1917</color>
+    <color name="psm_muted">#57534E</color>
+    <color name="psm_border">#E7E5E4</color>
+
+    <!-- Danger / error tones -->
+    <color name="psm_danger_bg">#FFF1F2</color>
+    <color name="psm_danger_border">#FECDD3</color>
+
+    <!-- Info card (install prompt) -->
+    <color name="psm_info_bg">#FFFBEB</color>
+    <color name="psm_info_border">#FCD34D</color>
+
+    <!-- Toast -->
+    <color name="psm_toast_bg">#1C1917</color>
+    <color name="psm_toast_text">#FFFFFF</color>
+
+    <!-- Material 3 color roles mapped from PSM brand -->
+    <color name="md_theme_primary">@color/psm_accent</color>
+    <color name="md_theme_onPrimary">#FFFFFF</color>
+    <color name="md_theme_primaryContainer">#FFDDB3</color>
+    <color name="md_theme_onPrimaryContainer">#351000</color>
+
+    <color name="md_theme_secondary">@color/psm_accent2</color>
+    <color name="md_theme_onSecondary">#FFFFFF</color>
+    <color name="md_theme_secondaryContainer">#FFDAD6</color>
+    <color name="md_theme_onSecondaryContainer">#410002</color>
+
+    <color name="md_theme_tertiary">#6D5E0F</color>
+    <color name="md_theme_onTertiary">#FFFFFF</color>
+
+    <color name="md_theme_error">@color/psm_accent2</color>
+    <color name="md_theme_onError">#FFFFFF</color>
+    <color name="md_theme_errorContainer">@color/psm_danger_bg</color>
+    <color name="md_theme_onErrorContainer">#410002</color>
+
+    <color name="md_theme_background">@color/psm_bg</color>
+    <color name="md_theme_onBackground">@color/psm_text</color>
+    <color name="md_theme_surface">@color/psm_card</color>
+    <color name="md_theme_onSurface">@color/psm_text</color>
+    <color name="md_theme_surfaceVariant">#F5F0EB</color>
+    <color name="md_theme_onSurfaceVariant">@color/psm_muted</color>
+    <color name="md_theme_outline">@color/psm_border</color>
+    <color name="md_theme_outlineVariant">#D7D2CC</color>
+
+    <!-- Status bar -->
+    <color name="psm_status_bar">@color/psm_accent</color>
+
+    <color name="psm_success_soft">#DCFCE7</color>
+    <color name="psm_success_text">#166534</color>
+</resources>

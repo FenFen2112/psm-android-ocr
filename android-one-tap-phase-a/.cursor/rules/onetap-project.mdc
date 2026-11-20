@@ -1,0 +1,13 @@
+---
+description: Ngữ cảnh dự án PSM OneTap Android — dùng khi sửa Kotlin/OCR/bubble/GAS
+alwaysApply: true
+---
+
+# PSM OneTap — Android (Kotlin)
+
+- **Package:** `vn.phapsumeo.onetap`. **minSdk 26**, Kotlin, ViewBinding.
+- **Luồng bubble:** `BubbleOverlayService` → `OrderCardCropPreprocessor` (`capture/layer/ImagePreprocessor.kt`) neo **thumbnail** trong **thẻ đơn**, crop **title / price** theo **tỉ lệ trong card** + dp → không dùng rect pixel cố định fullscreen.
+- **OCR:** `OcrFacade` + ML Kit Chinese; crop nhỏ dùng `OcrPreprocessConfigs.RegionCrop` (grayscale + contrast, không cropOptimization để bbox đúng).
+- **Parse:** `XianyuRuleTextExtractor` — giá từ vùng price; `mergeMetadata` có thể dùng **price + title** (không OCR vùng meta riêng).
+- **Debug vùng:** `OcrCropRegionsDebugPainter` — THUMB (cam), TITLE (đỏ), PRICE (lục).
+- **Quy tắc:** chỉ sửa phạm vi task; recycle bitmap crop; không refactor không liên quan. Chi tiết: `AGENTS.md` và `README.md`.
