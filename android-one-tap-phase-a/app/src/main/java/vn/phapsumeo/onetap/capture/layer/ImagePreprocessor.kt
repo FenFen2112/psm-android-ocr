@@ -58,11 +58,8 @@ class OrderCardCropPreprocessor : ImagePreprocessor {
                 skipTopFraction = THUMB_SEARCH_SKIP_TOP_FRAC,
                 searchBottomFraction = THUMB_SEARCH_BOTTOM_FRAC,
             )
-            var thumbLocalRaw = visualThumb?.rect
+            val thumbLocalRaw = visualThumb?.rect
                 ?: ThumbnailCropDetector.fallbackCropRect(cw, ch, topFrac = THUMB_FALLBACK_TOP_FRAC)
-            if (visualThumb != null && thumbLocalRaw.bottom < ch * THUMB_REJECT_IF_BOTTOM_BELOW_FRAC) {
-                thumbLocalRaw = ThumbnailCropDetector.fallbackCropRect(cw, ch, topFrac = THUMB_FALLBACK_TOP_FRAC)
-            }
             val thumbLocal = Rect(
                 thumbLocalRaw.left.coerceIn(0, cw - 2),
                 thumbLocalRaw.top.coerceIn(0, ch - 2),
@@ -98,33 +95,24 @@ class OrderCardCropPreprocessor : ImagePreprocessor {
                 return PreprocessResult(fullBitmap, null)
             }
 
-            // TITLE: sát mép phải ảnh, từ đỉnh ảnh. Nửa dưới ảnh là badge (专人专拍), không phải tên.
-            val titleTop = padded.top + thumbLocal.top
-            val titleBottom = (titleTop + (thumbLocal.height() * 0.62f).toInt())
-                .coerceAtMost(padded.top + thumbLocal.bottom)
+            // Cột tên bên phải ảnh, đủ cao để có cả hai món, không chỉ món đầu.
             val titleRect = Rect(
-                padded.left + thumbLocal.right + dpPx(fullBitmap, 8f),
-                titleTop,
+                padded.left + thumbLocal.right + dpPx(fullBitmap, 6f),
+                padded.top + (ch * 0.12f).toInt(),
                 padded.right - dpPx(fullBitmap, 8f),
-                titleBottom,
+                padded.top + (ch * 0.70f).toInt(),
             ).let {
                 val clamped = intersectRect(it, fw, fh)
                 Log.d(TAG, "titleRect raw: $it, clamped: $clamped")
                 clamped
             }
 
-            // PRICE: ngay dưới hàng sản phẩm (商品总价 / 运费 / 成交价), không lấy tới đáy thẻ (订单编号).
-            val priceTop = padded.top + thumbLocal.bottom + dpPx(fullBitmap, 6f)
-            val priceBand = (thumbLocal.height() * 0.85f).toInt().coerceIn(
-                dpPx(fullBitmap, 72f),
-                (ch * PRICE_TEXT_BAND_HEIGHT_FRAC).toInt().coerceAtLeast(dpPx(fullBitmap, 72f)),
-            )
-            val priceBottomMax = padded.top + (ch * PRICE_BAND_MAX_BOTTOM_FRAC).toInt()
+            // Đáy thẻ full ngang: 运费 và 实付款 (nhãn thường nằm bên trái).
             val priceRect = Rect(
-                padded.left + (cw * 0.08f).toInt(),
-                priceTop,
+                padded.left + dpPx(fullBitmap, 8f),
+                padded.top + (ch * 0.58f).toInt(),
                 padded.right - dpPx(fullBitmap, 8f),
-                (priceTop + priceBand).coerceAtMost(priceBottomMax),
+                padded.top + (ch * PRICE_BAND_MAX_BOTTOM_FRAC).toInt(),
             ).let {
                 val clamped = intersectRect(it, fw, fh)
                 Log.d(TAG, "priceRect raw: $it, clamped: $clamped")
@@ -250,7 +238,7 @@ class OrderCardCropPreprocessor : ImagePreprocessor {
         private const val THUMB_SEARCH_SKIP_TOP_FRAC = 0.11f
         private const val THUMB_SEARCH_BOTTOM_FRAC = 0.50f
         private const val THUMB_REJECT_IF_BOTTOM_BELOW_FRAC = 0.24f
-        private const val THUMB_FALLBACK_TOP_FRAC = 0.125f
+        private const val THUMB_FALLBACK_TOP_FRAC = 0.20f
         private const val THUMB_FALLBACK_SIDE_FRAC = 0.30f
 
         /** Chiều cao vùng chỉ chứa block giá (成交价/商品总价/运费), tỉ lệ trên chiều cao thẻ. */

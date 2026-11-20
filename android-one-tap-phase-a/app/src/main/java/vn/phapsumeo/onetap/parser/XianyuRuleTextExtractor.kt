@@ -79,8 +79,8 @@ object XianyuRuleTextExtractor {
                     if (amount != null) ship = amount
                     i = consumed
                 }
-                compact.contains("实付") || compact.contains("實付") || compact.contains("成交价") || compact.contains("合计") -> {
-                    val (amount, consumed) = feeAmount(lines, i)
+                isPaidLine(compact) -> {
+                    val (amount, consumed) = paidAt(lines, i)
                     if (amount != null) paid = amount
                     i = consumed
                 }
@@ -120,7 +120,47 @@ object XianyuRuleTextExtractor {
                 .find(flat)
                 ?.let { parseMoneyToken(it.groupValues[1]) }
         }
-        return OrderRead(products, ship, paid, goods)
+        return OrderRead(products, ship, paid ?: paidNearLabel(lines), goods)
+    }
+
+    /** Gộp vài vùng OCR. 实付款 của vùng nào cũng thắng giá món. */
+    fun mergeReads(parts: List<OrderRead>): OrderRead {
+        val products = mutableListOf<ProductRow>()
+        for (part in parts) {
+            for (row in part.products) {
+                val name = row.name.trim()
+                if (name.isEmpty()) continue
+                val known = products.any { existing ->
+                    existing.name == name || existing.name.startsWith(name) || name.startsWith(existing.name)
+                }
+                if (!known) products += row.copy(name = name)
+            }
+        }
+        return OrderRead(
+            products = products,
+            ship = parts.firstNotNullOfOrNull { it.ship },
+            paid = parts.firstNotNullOfOrNull { it.paid },
+            goods = parts.firstNotNullOfOrNull { it.goods },
+        )
+    }
+
+    /** 实付款 / 成交价, kể cả khi số đứng ngay trên nhãn. */
+    fun paidFromText(text: String): Double? {
+        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        return paidNearLabel(lines)
+    }
+
+    private fun paidNearLabel(lines: List<String>): Double? {
+        for (i in lines.indices) {
+            val compact = lines[i].replace(" ", "")
+            if (!isPaidLine(compact)) continue
+            paidAt(lines, i).first?.let { return it }
+        }
+        val flat = lines.joinToString(" ")
+        return Regex("""(?:实付款|實付款|实付|實付|成交价)[^\d]{0,12}(\d{1,6}(?:[.,]\d{1,2})?)""")
+            .find(flat)
+            ?.let { parseMoneyToken(it.groupValues[1]) }
+            ?.takeIf { it > 0.0 }
     }
 
     fun applyRead(draft: OrderDraft, read: OrderRead): OrderDraft {
@@ -132,8 +172,8 @@ object XianyuRuleTextExtractor {
         val tong = when {
             paid != null -> paid
             itemSum != null && ship != null -> itemSum + ship
-            read.products.size <= 1 -> itemSum ?: draft.tongCn?.takeIf { it > 0.0 }
-            else -> null
+            read.products.size > 1 -> null
+            else -> itemSum ?: draft.tongCn?.takeIf { it > 0.0 }
         }
         val title = if (read.products.isEmpty()) {
             draft.tenSanPham
@@ -167,6 +207,39 @@ object XianyuRuleTextExtractor {
         val nextAmount = loneAmount(next)
         if (nextAmount != null) return nextAmount to index + 1
         return null to index
+    }
+
+    private fun isPaidLine(compact: String): Boolean {
+        if (compact.contains("等待")) return false
+        return compact.contains("实付") || compact.contains("實付") ||
+            compact.contains("成交价") || compact.contains("付款")
+    }
+
+    /**
+     * Số của 实付款. Nếu dòng nhãn dính giá món nhỏ hơn (¥13.1) và dòng dưới là ¥26.5 thì lấy 26.5.
+     */
+    private fun paidAt(lines: List<String>, index: Int): Pair<Double?, Int> {
+        val beside = amountBesidePaidLabel(lines[index])
+        val belowLine = lines.getOrNull(index + 1)
+        val below = belowLine?.let { loneAmount(it) }
+        val chosen = when {
+            beside != null && below != null && below > beside -> below
+            beside != null -> beside
+            else -> below
+        }
+        val consumed = if (chosen != null && chosen == below) index + 1 else index
+        return chosen to consumed
+    }
+
+    /** Số đứng sau nhãn 实付款. Dòng dính cả ¥13.1 thì không lấy số đầu. */
+    private fun amountBesidePaidLabel(line: String): Double? {
+        val compact = line.replace(" ", "")
+        val label = Regex("""实付款|實付款|实付|實付|成交价|付款""").find(compact) ?: return null
+        val after = compact.substring(label.range.last + 1)
+        yenAmounts(after).lastOrNull()?.let { return it }
+        loneAmount(after)?.let { return it }
+        val before = compact.substring(0, label.range.first)
+        return yenAmounts(before).lastOrNull() ?: loneAmount(before)
     }
 
     /** Số trên dòng nhãn, có hoặc không có ký hiệu ¥. */
@@ -218,6 +291,8 @@ object XianyuRuleTextExtractor {
     private fun isNoiseLine(compact: String): Boolean {
         if (compact.contains("确认收货") || compact.contains("自动确认")) return true
         if (compact.contains("专人专拍")) return true
+        if (compact.contains("淘宝") || compact.contains("天猫") || compact.contains("进店")) return true
+        if (compact.contains("店铺") || compact.contains("关注") || compact.contains("客服")) return true
         if (compact.contains("订单编号") || compact.contains("订单号")) return true
         if (compact.contains("复制") && compact.length < 24) return true
         return Regex("""1[3-9]\d{9}""").containsMatchIn(compact)

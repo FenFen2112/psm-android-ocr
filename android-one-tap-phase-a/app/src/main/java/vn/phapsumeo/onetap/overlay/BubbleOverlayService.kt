@@ -1034,7 +1034,20 @@ class BubbleOverlayService : Service() {
             if (uris.isNotEmpty()) break
         }
         if (uris.isEmpty()) {
-            saveBitmapToCache(card, 0)?.let { uris += it }
+            val fallback = ThumbnailCropDetector.fallbackCropRect(card.width, card.height, topFrac = 0.22f)
+            val photo = cropBitmap(full, Rect(
+                fallback.left + originLeft,
+                fallback.top + originTop,
+                fallback.right + originLeft,
+                fallback.bottom + originTop,
+            ))
+            if (photo != null) {
+                try {
+                    saveBitmapToCache(photo, 0)?.let { uris += it }
+                } finally {
+                    if (photo !== full && !photo.isRecycled) photo.recycle()
+                }
+            }
         }
         return uris
     }

@@ -152,6 +152,10 @@ object ThumbnailCropDetector {
                 var x = 0
                 while (x + side <= xLimit && x + side <= iw) {
                     val r = Rect(x, y, x + side, y + side)
+                    if (!rightSideIsTextColumn(s, r)) {
+                        x += stepXY
+                        continue
+                    }
                     val sc = scorePatch(s, r) * verticalThumbLikelihood(r, ih)
                     if (best == null || sc > best.score) best = ScoredRect(r, sc)
                     x += stepXY
@@ -168,7 +172,7 @@ object ThumbnailCropDetector {
                     while (x2 + w2 <= xLimit && x2 + w2 <= iw) {
                         val r2 = Rect(x2, y2, x2 + w2, y2 + h2)
                         val ar = r2.width().toFloat() / r2.height()
-                        if (ar in ASPECT_MIN..ASPECT_MAX) {
+                        if (ar in ASPECT_MIN..ASPECT_MAX && rightSideIsTextColumn(s, r2)) {
                             val sc2 = scorePatch(s, r2) * verticalThumbLikelihood(r2, ih)
                             if (best == null || sc2 > best.score) best = ScoredRect(r2, sc2)
                         }
@@ -187,12 +191,44 @@ object ThumbnailCropDetector {
         if (ih <= 1) return 1f
         val cy = (r.top + r.bottom) / 2f / ih
         return when {
-            cy < 0.07f -> 0.42f
+            cy < 0.06f -> 0.25f
             cy < 0.12f -> 0.55f
-            cy < 0.20f -> 0.40f
-            cy <= 0.46f -> 1f
-            else -> 0.92f
+            else -> 1f
         }
+    }
+
+    /**
+     * Ảnh sản phẩm có cột chữ tên bên phải (nền sáng). Banner shop (淘宝 / tên shop)
+     * là dải màu chạy hết chiều ngang, bên phải vẫn là ảnh.
+     */
+    private fun rightSideIsTextColumn(b: Bitmap, r: Rect): Boolean {
+        val gap = max(2, r.width() / 16)
+        val left = r.right + gap
+        val right = min(b.width - 1, left + (r.width() * 1.15f).toInt())
+        if (right - left < 8) return false
+        val st = max(2, min(r.width(), r.height()) / 18)
+        var n = 0
+        var sum = 0.0
+        var chromaSum = 0.0
+        var y = r.top
+        while (y < r.bottom) {
+            var x = left
+            while (x < right) {
+                val p = pixel(b, x, y)
+                sum += luma(p)
+                val rr = (p shr 16) and 0xFF
+                val gg = (p shr 8) and 0xFF
+                val bb = p and 0xFF
+                chromaSum += abs(rr - gg) + abs(gg - bb)
+                n++
+                x += st
+            }
+            y += st
+        }
+        if (n == 0) return false
+        val mean = sum / n
+        val chroma = chromaSum / n
+        return mean > 165.0 && chroma < 26.0
     }
 
     /**

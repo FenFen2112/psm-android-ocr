@@ -90,16 +90,16 @@ object BubbleMultiRegionOcr {
         val titleText = runRegion(titleOcrBmp, titleOcrRect, "title")
         val priceText = runRegion(preprocess.priceBitmap, preprocess.priceCropRectInCapture, "price")
         val cardText = runRegion(preprocess.productBitmap, preprocess.cropRectInCapture, "card")
-        val read = if (cardText.isNotBlank()) {
-            val fromCard = XianyuRuleTextExtractor.readOrder(cardText)
-            val fromPrice = XianyuRuleTextExtractor.readOrder(priceText)
-            fromCard.copy(
-                ship = fromCard.ship ?: fromPrice.ship,
-                paid = fromCard.paid ?: fromPrice.paid,
-                goods = fromCard.goods ?: fromPrice.goods,
-            )
-        } else {
-            XianyuRuleTextExtractor.readOrder("$titleText\n$priceText")
+        val allText = "$cardText\n$titleText\n$priceText"
+        val read = XianyuRuleTextExtractor.mergeReads(
+            listOf(
+                XianyuRuleTextExtractor.readOrder(priceText),
+                XianyuRuleTextExtractor.readOrder(cardText),
+                XianyuRuleTextExtractor.readOrder(titleText),
+            ),
+        ).let { merged ->
+            val paid = merged.paid ?: XianyuRuleTextExtractor.paidFromText(allText)
+            if (paid == null || paid == merged.paid) merged else merged.copy(paid = paid)
         }
 
         val pickedTitle = pickProductTitleFromTitleRegion(titleText)
@@ -110,13 +110,16 @@ object BubbleMultiRegionOcr {
         var draft = OrderDraft(
             tenSanPham = productTitle.take(120),
             giaHangCn = embeddedPrice,
-            tongCn = if (read.products.size > 1) null else embeddedPrice,
+            tongCn = null,
             sharedImageUri = photos.firstOrNull().orEmpty(),
             productImageUris = photos,
         )
         draft = XianyuRuleTextExtractor.merge(draft, priceText.ifBlank { cardText })
-        draft = XianyuRuleTextExtractor.mergeMetadata(draft, "", cardText + "\n" + titleText + "\n" + priceText)
+        draft = XianyuRuleTextExtractor.mergeMetadata(draft, "", allText)
         draft = XianyuRuleTextExtractor.applyRead(draft, read)
+        XianyuRuleTextExtractor.paidFromText(allText)?.let { paid ->
+            draft = draft.copy(tongCn = paid)
+        }
 
         val combinedRaw = buildString {
             appendLine("=== TITLE ===")
